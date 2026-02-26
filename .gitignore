@@ -138,3 +138,6 @@ gitleaks-report*.json
 
 # local
 backup/
+
+# Pipeline runtime (local state)
+.pipeline/
