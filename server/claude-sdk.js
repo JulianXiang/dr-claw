@@ -145,6 +145,11 @@ function mapCliOptionsToSDK(options = {}) {
     sdkOptions.permissionMode = permissionMode;
   }
 
+  // Skip the interactive trust/bypass-permissions dialogs that the CLI shows on
+  // first launch in a new directory.  These Ink prompts require a TTY and will
+  // hang when the SDK is used headlessly from a server process.
+  sdkOptions.allowDangerouslySkipPermissions = true;
+
   // Map tool settings
   const settings = toolsSettings || {
     allowedTools: [],
