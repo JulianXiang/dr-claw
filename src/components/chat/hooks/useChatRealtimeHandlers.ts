@@ -344,7 +344,7 @@ export function useChatRealtimeHandlers({
           return;
         }
 
-        if (structuredMessageData && Array.isArray(structuredMessageData.content)) {
+        if (structuredMessageData && Array.isArray(structuredMessageData.content) && structuredMessageData.role === 'assistant') {
           const parentToolUseId = rawStructuredData?.parentToolUseId;
 
           structuredMessageData.content.forEach((part: any) => {
@@ -415,7 +415,7 @@ export function useChatRealtimeHandlers({
               ]);
             }
           });
-        } else if (structuredMessageData && typeof structuredMessageData.content === 'string' && structuredMessageData.content.trim()) {
+        } else if (structuredMessageData && structuredMessageData.role === 'assistant' && typeof structuredMessageData.content === 'string' && structuredMessageData.content.trim()) {
           let content = decodeHtmlEntities(structuredMessageData.content);
           content = formatUsageLimitText(content);
           setChatMessages((previous) => [

@@ -139,7 +139,7 @@ function MainContent({
 
           {activeTab === 'shell' && (
             <div className="h-full w-full overflow-hidden">
-              <AnyStandaloneShell project={selectedProject} session={selectedSession} showHeader={false} />
+              <AnyStandaloneShell project={selectedProject} session={selectedSession} isPlainShell={true} showHeader={false} />
             </div>
           )}
 
