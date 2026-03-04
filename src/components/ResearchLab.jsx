@@ -357,7 +357,7 @@ function StageSection({ title, icon: Icon, badgeClass, expanded, onToggle, child
   );
 }
 
-function TaskPipelineBoard({ tasks, isLoading, onOpenTasksFile, onOpenBriefFile, onNavigateToChat }) {
+function TaskPipelineBoard({ tasks, isLoading, onNavigateToChat }) {
   const [openStages, setOpenStages] = useState({});
 
   useEffect(() => {
@@ -424,19 +424,9 @@ function TaskPipelineBoard({ tasks, isLoading, onOpenTasksFile, onOpenBriefFile,
                 Pipeline Task List
               </h3>
               <p className="text-xs text-muted-foreground">
-                Stage-oriented task board synced from <code className="bg-muted px-1 rounded">{`.pipeline/tasks/${DEFAULT_TASKS_FILENAME}`}</code>
+                Stage-oriented task board for your research pipeline
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" onClick={onOpenBriefFile}>
-              <FileText className="w-3.5 h-3.5 mr-1" />
-              Open research_brief.json
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onOpenTasksFile}>
-              <FileText className="w-3.5 h-3.5 mr-1" />
-              Open tasks.json
-            </Button>
           </div>
         </div>
       </div>
@@ -1085,7 +1075,12 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [projectFileSet, setProjectFileSet] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFileRaw] = useState(null);
+  const HIDDEN_FILENAMES = useMemo(() => new Set([DEFAULT_RESEARCH_BRIEF_FILENAME, DEFAULT_TASKS_FILENAME]), []);
+  const setSelectedFile = useCallback((file) => {
+    if (file && HIDDEN_FILENAMES.has(file.name)) return;
+    setSelectedFileRaw(file);
+  }, [HIDDEN_FILENAMES]);
   const [sectionsOpen, setSectionsOpen] = useState({
     ideation: true,
     experiment: true,
@@ -1189,7 +1184,9 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
         if (/(?:^|\/)cache\//.test(rel)) return true;
         return false;
       });
-      setArtifacts(logFiles);
+      // Exclude research_brief.json and tasks.json from user-visible artifacts
+      const HIDDEN_FILES = new Set([DEFAULT_RESEARCH_BRIEF_FILENAME, DEFAULT_TASKS_FILENAME]);
+      setArtifacts(logFiles.filter((f) => !HIDDEN_FILES.has(f.name)));
     } catch (e) {
       console.error('ResearchLab load:', e);
     } finally {
@@ -1244,16 +1241,6 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                 tasks={tasks}
                 isLoading={tasksLoading}
                 onNavigateToChat={onNavigateToChat}
-                onOpenBriefFile={() => setSelectedFile({
-                  name: DEFAULT_RESEARCH_BRIEF_FILENAME,
-                  relativePath: `.pipeline/docs/${DEFAULT_RESEARCH_BRIEF_FILENAME}`,
-                  path: `${projectRoot.replace(/[/\\]+$/, '')}/.pipeline/docs/${DEFAULT_RESEARCH_BRIEF_FILENAME}`,
-                })}
-                onOpenTasksFile={() => setSelectedFile({
-                  name: DEFAULT_TASKS_FILENAME,
-                  relativePath: `.pipeline/tasks/${DEFAULT_TASKS_FILENAME}`,
-                  path: `${projectRoot.replace(/[/\\]+$/, '')}/.pipeline/tasks/${DEFAULT_TASKS_FILENAME}`,
-                })}
               />
 
               {loading && !hasContent ? (
@@ -1306,8 +1293,7 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                 />
               ) : (
                 <div className="rounded-lg border border-dashed border-border bg-card/60 px-4 py-6 text-center text-xs text-muted-foreground">
-                  Select <code className="bg-muted px-1 rounded">research_brief.json</code>, <code className="bg-muted px-1 rounded">tasks.json</code>,
-                  or any artifact file to preview it here.
+                  Select any artifact file to preview it here.
                 </div>
               )}
             </div>
