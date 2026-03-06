@@ -21,7 +21,7 @@ export const CLAUDE_MODELS = {
     { value: 'claude-opus-4-6', label: 'Opus 4.6' }
   ],
 
-  DEFAULT: (typeof process !== 'undefined' && process.env?.ANTHROPIC_MODEL) || 'sonnet'
+  DEFAULT: (typeof process !== 'undefined' && process.env?.ANTHROPIC_MODEL) || 'opusplan'
 };
 
 /**
@@ -56,6 +56,7 @@ export const CURSOR_MODELS = {
  */
 export const CODEX_MODELS = {
   OPTIONS: [
+    { value: 'gpt-5.4', label: 'GPT-5.4' },
     { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
     { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
     { value: 'gpt-5.2', label: 'GPT-5.2' },
@@ -64,5 +65,5 @@ export const CODEX_MODELS = {
     { value: 'o4-mini', label: 'O4-mini' }
   ],
 
-  DEFAULT: 'gpt-5.2'
+  DEFAULT: 'gpt-5.4'
 };
