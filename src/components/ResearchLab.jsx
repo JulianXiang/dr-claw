@@ -228,6 +228,61 @@ const TASK_STATUS_META = {
   deferred: { label: 'Deferred', className: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' },
   cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
 };
+const ARTIFACT_STAGE_ORDER = [
+  'Literature Survey',
+  'Gap Analysis',
+  'Data Loading',
+  'Prepare',
+  'Idea Generation',
+  'Medical Expert',
+  'Engineering Expert',
+  'Repo Acquisition',
+  'Code Survey',
+  'Implementation Plan',
+  'ML Development',
+  'Judge',
+  'Experiment Analysis',
+  'Paper Writing',
+  'Homepage Delivery',
+  'Slide Generation',
+  'TTS Audio',
+  'Video Assembly',
+  'Other',
+];
+
+function sortArtifactsByStageAndPath(files) {
+  const rank = new Map(ARTIFACT_STAGE_ORDER.map((stage, index) => [stage, index]));
+  return [...files].sort((left, right) => {
+    const leftStage = classifyArtifact(left.name, left.relativePath).stage;
+    const rightStage = classifyArtifact(right.name, right.relativePath).stage;
+    const leftRank = rank.get(leftStage) ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = rank.get(rightStage) ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return left.relativePath.localeCompare(right.relativePath);
+  });
+}
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']);
+const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'ogg', 'm4a']);
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v']);
+const UNSUPPORTED_BINARY_EXTENSIONS = new Set([
+  'zip', 'gz', 'tar', 'tgz', '7z', 'rar',
+  'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx',
+  'bin', 'npy', 'npz', 'pkl', 'pt', 'pth', 'ckpt', 'onnx',
+]);
+
+function getArtifactPreviewKind(file) {
+  const name = file?.name || file?.relativePath || '';
+  const extension = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+
+  if (extension === 'pdf') return 'pdf';
+  if (IMAGE_EXTENSIONS.has(extension)) return 'image';
+  if (AUDIO_EXTENSIONS.has(extension)) return 'audio';
+  if (VIDEO_EXTENSIONS.has(extension)) return 'video';
+  if (UNSUPPORTED_BINARY_EXTENSIONS.has(extension)) return 'unsupported';
+  return 'text';
+}
 
 /* ------------------------------------------------------------------ */
 /*  Sub-components (cards)                                             */
@@ -896,7 +951,6 @@ function TaskPipelineBoard({ tasks, isLoading, onNavigateToChat, projectName, on
 /** Research artifacts grouped by pipeline stage */
 function ArtifactsCard({ artifacts, onSelect, selectedPath }) {
   const [openStages, setOpenStages] = useState({});
-  if (!artifacts || artifacts.length === 0) return null;
 
   // Group by stage
   const groups = {};
@@ -905,59 +959,72 @@ function ArtifactsCard({ artifacts, onSelect, selectedPath }) {
     if (!groups[info.stage]) groups[info.stage] = { ...info, files: [] };
     groups[info.stage].files.push(a);
   }
-  const stageOrder = [
-    'Literature Survey', 'Gap Analysis',
-    'Data Loading', 'Prepare', 'Idea Generation', 'Medical Expert', 'Engineering Expert',
-    'Repo Acquisition', 'Code Survey', 'Implementation Plan',
-    'ML Development', 'Judge', 'Experiment Analysis', 'Paper Writing', 'Other'
+  const sorted = [
+    ...ARTIFACT_STAGE_ORDER.filter((stage) => groups[stage]).map((stage) => ({ stage, ...groups[stage] })),
+    ...Object.keys(groups)
+      .filter((stage) => !ARTIFACT_STAGE_ORDER.includes(stage))
+      .sort((left, right) => left.localeCompare(right))
+      .map((stage) => ({ stage, ...groups[stage] })),
   ];
-  const sorted = stageOrder.filter(s => groups[s]).map(s => ({ stage: s, ...groups[s] }));
 
-  const toggle = (stage) => setOpenStages(prev => ({ ...prev, [stage]: !prev[stage] }));
+  const toggle = (stage, defaultOpen) => setOpenStages(prev => ({ ...prev, [stage]: !(prev[stage] ?? defaultOpen) }));
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-        <Beaker className="w-4 h-4 text-orange-500 dark:text-orange-400" />
-        Research Artifacts
-        <span className="text-xs font-normal text-muted-foreground">({artifacts.length} files)</span>
-      </h3>
-      <div className="space-y-1">
-        {sorted.map(g => {
-          const Icon = g.icon;
-          const isOpen = openStages[g.stage] ?? false;
-          return (
-            <div key={g.stage}>
-              <button onClick={() => toggle(g.stage)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 text-sm">
-                {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                <Icon className="w-4 h-4" />
-                <span className="font-medium text-foreground">{g.stage}</span>
-                <span className={`ml-auto text-xs px-1.5 py-0 rounded ${BADGE_COLORS[g.color]}`}>
-                  {g.files.length}
-                </span>
-              </button>
-              {isOpen && (
-                <ul className="ml-6 pl-2 border-l border-border space-y-0.5 py-1">
-                  {g.files.map(f => (
-                    <li key={f.relativePath}>
-                      <button onClick={() => onSelect(f)}
-                        className={`w-full text-left px-2 py-1 rounded text-xs flex items-center gap-1.5 truncate ${
-                          selectedPath === f.relativePath
-                            ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200'
-                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                        }`}>
-                        <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{f.name}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Beaker className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          Artifacts Explorer
+        </h3>
+        <span className="text-xs text-muted-foreground">{artifacts.length} files</span>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Browse artifacts generated across the 5-stage pipeline: Survey, Ideation, Experiment, Publication, and Promotion.
+      </p>
+      {artifacts.length === 0 ? (
+        <div className="text-xs text-muted-foreground rounded-md border border-dashed border-border px-3 py-4">
+          No stage artifacts found yet. Use the <code className="bg-muted px-1 rounded">inno-pipeline-planner</code> skill in Chat to start a pipeline, then refresh after tasks run.
+        </div>
+      ) : (
+        <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+          {sorted.map(g => {
+            const Icon = g.icon;
+            const isStageSelected = g.files.some((file) => file.relativePath === selectedPath);
+            const defaultOpen = isStageSelected || (!selectedPath && sorted[0]?.stage === g.stage);
+            const isOpen = openStages[g.stage] ?? defaultOpen;
+            return (
+              <div key={g.stage}>
+                <button onClick={() => toggle(g.stage, defaultOpen)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 text-sm">
+                  {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  <Icon className="w-4 h-4" />
+                  <span className="font-medium text-foreground">{g.stage}</span>
+                  <span className={`ml-auto text-xs px-1.5 py-0 rounded ${BADGE_COLORS[g.color]}`}>
+                    {g.files.length}
+                  </span>
+                </button>
+                {isOpen && (
+                  <ul className="ml-6 pl-2 border-l border-border space-y-0.5 py-1">
+                    {g.files.map(f => (
+                      <li key={f.relativePath}>
+                        <button onClick={() => onSelect(f)}
+                          className={`w-full text-left px-2 py-1 rounded text-xs flex items-center gap-1.5 truncate ${
+                            selectedPath === f.relativePath
+                              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200'
+                              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                          }`}>
+                          <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate">{f.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1302,40 +1369,98 @@ function PaperCard({ projectName, projectRoot }) {
 /** File viewer / editor panel */
 function FileViewer({ projectName, file, onClose }) {
   const [content, setContent] = useState('');
+  const [blobUrl, setBlobUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const previewKind = useMemo(() => getArtifactPreviewKind(file), [file]);
+  const isTextEditable = previewKind === 'text';
+  const supportsBlobPreview = previewKind === 'pdf' || previewKind === 'image' || previewKind === 'audio' || previewKind === 'video';
+  const viewerHeight = previewKind === 'pdf'
+    ? '70vh'
+    : previewKind === 'video'
+      ? '32rem'
+      : previewKind === 'image'
+        ? '30rem'
+        : '28rem';
 
   useEffect(() => {
     if (!file) return;
+    let objectUrl = null;
+    let cancelled = false;
+
     setLoading(true);
     setDirty(false);
     setSaveStatus(null);
-    api.readFile(projectName, file.relativePath)
-      .then(async (response) => {
+    setLoadError(null);
+    setContent('');
+    setBlobUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+
+    const loadPreview = async () => {
+      try {
+        if (supportsBlobPreview) {
+          const absolutePath = file.path || file.absolutePath;
+          if (!absolutePath) {
+            throw new Error('Missing absolute path for binary preview.');
+          }
+
+          const blob = await api.getFileContentBlob(projectName, absolutePath);
+          if (cancelled) return;
+
+          objectUrl = URL.createObjectURL(blob);
+          setBlobUrl(objectUrl);
+          return;
+        }
+
+        if (previewKind === 'unsupported') {
+          return;
+        }
+
+        const response = await api.readFile(projectName, file.relativePath);
         if (!response?.ok) {
-          return null;
+          throw new Error(`Failed to load file: ${response?.status || 'unknown error'}`);
         }
 
         const rawText = await response.text();
+        if (cancelled) return;
+
         if (!rawText) {
-          return { content: '' };
+          setContent('');
+          return;
         }
 
         try {
-          return JSON.parse(rawText);
+          const data = JSON.parse(rawText);
+          setContent(data?.content ?? '');
         } catch {
-          // Fallback for non-JSON error pages or unexpected payloads.
-          return { content: rawText };
+          // Fallback for non-JSON responses.
+          setContent(rawText);
         }
-      })
-      .then((data) => setContent(data?.content ?? ''))
-      .catch(() => setContent(''))
-      .finally(() => setLoading(false));
-  }, [projectName, file]);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error?.message || 'Failed to load preview.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPreview();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [projectName, file, previewKind, supportsBlobPreview]);
 
   const handleSave = async () => {
-    if (!file) return;
+    if (!file || !isTextEditable) return;
     setSaveStatus('saving');
     try {
       await api.saveFile(projectName, file.relativePath, content);
@@ -1351,23 +1476,69 @@ function FileViewer({ projectName, file, onClose }) {
   if (!file) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-card flex flex-col overflow-hidden">
+    <div
+      className="rounded-lg border border-border bg-card flex flex-col overflow-hidden resize-y min-h-[320px] max-h-[85vh]"
+      style={{ height: viewerHeight }}
+    >
       <div className="border-b border-border px-3 py-2 flex items-center justify-between flex-shrink-0 bg-muted/30">
         <span className="text-xs font-medium text-foreground truncate flex-1 mr-2">{file.relativePath}</span>
         <div className="flex items-center gap-2 flex-shrink-0">
           {saveStatus === 'saved' && <span className="text-xs text-green-600">Saved</span>}
           {saveStatus === 'error' && <span className="text-xs text-red-600">Failed</span>}
-          <Button size="sm" variant="ghost" onClick={handleSave} disabled={!dirty || loading}>
-            <Save className="w-3.5 h-3.5 mr-1" /> Save
-          </Button>
+          {blobUrl && supportsBlobPreview && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => window.open(blobUrl, '_blank', 'noopener')}
+            >
+              <ExternalLink className="w-3.5 h-3.5 mr-1" /> Open
+            </Button>
+          )}
+          {isTextEditable && (
+            <Button size="sm" variant="ghost" onClick={handleSave} disabled={!dirty || loading}>
+              <Save className="w-3.5 h-3.5 mr-1" /> Save
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={onClose}>✕</Button>
         </div>
       </div>
       {loading ? (
-        <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+        <div className="flex-1 min-h-0 p-4 text-sm text-muted-foreground">Loading...</div>
+      ) : loadError ? (
+        <div className="flex-1 min-h-0 p-4 text-sm text-destructive">
+          Failed to load preview. {loadError}
+        </div>
+      ) : previewKind === 'pdf' && blobUrl ? (
+        <div className="flex-1 min-h-0 bg-background">
+          <iframe
+            title={file.name}
+            src={blobUrl}
+            className="w-full h-full border-0"
+          />
+        </div>
+      ) : previewKind === 'image' && blobUrl ? (
+        <div className="flex-1 min-h-0 bg-muted/10 overflow-auto p-3">
+          <img
+            src={blobUrl}
+            alt={file.name}
+            className="max-w-full h-auto mx-auto rounded-md border border-border"
+          />
+        </div>
+      ) : previewKind === 'audio' && blobUrl ? (
+        <div className="flex-1 min-h-0 p-4 flex items-center justify-center bg-background">
+          <audio src={blobUrl} controls className="w-full max-w-md" />
+        </div>
+      ) : previewKind === 'video' && blobUrl ? (
+        <div className="flex-1 min-h-0 bg-background p-3">
+          <video src={blobUrl} controls className="w-full h-full rounded-md border border-border bg-black" />
+        </div>
+      ) : previewKind === 'unsupported' ? (
+        <div className="flex-1 min-h-0 p-4 text-sm text-muted-foreground">
+          This file type cannot be previewed inline here yet.
+        </div>
       ) : (
         <textarea
-          className="flex-1 min-h-[250px] p-3 text-xs font-mono bg-background border-0 resize-y focus:outline-none focus:ring-0 text-foreground"
+          className="flex-1 min-h-0 h-full w-full p-3 text-xs font-mono bg-background border-0 resize-none focus:outline-none focus:ring-0 text-foreground"
           value={content}
           onChange={e => { setContent(e.target.value); setDirty(true); }}
           spellCheck={false}
@@ -1377,7 +1548,23 @@ function FileViewer({ projectName, file, onClose }) {
   );
 }
 
+function ArtifactPreviewEmptyState({ hasArtifacts }) {
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-card/60 px-4 py-8 text-center">
+      <FileText className="w-8 h-8 mx-auto text-muted-foreground/60" />
+      <h3 className="mt-3 text-sm font-semibold text-foreground">Artifact Preview</h3>
+      <p className="mt-1 text-xs text-muted-foreground max-w-xs mx-auto">
+        {hasArtifacts
+          ? 'Choose a file from Artifacts Explorer to inspect or edit it here.'
+          : 'Run the pipeline first, then preview generated artifacts here.'}
+      </p>
+    </div>
+  );
+}
+
 function UsageGuideNotice({ t, onNavigateToChat }) {
+  const guideSteps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+
   return (
     <div className="rounded-lg border border-blue-300/60 dark:border-blue-700/60 bg-blue-50/80 dark:bg-blue-900/20 p-4">
       <div className="flex items-start gap-3">
@@ -1390,10 +1577,9 @@ function UsageGuideNotice({ t, onNavigateToChat }) {
             {t('researchLabGuide.description')}
           </p>
           <ol className="list-decimal pl-4 space-y-1 text-xs text-blue-900/90 dark:text-blue-200/90">
-            <li>{t('researchLabGuide.step1')}</li>
-            <li>{t('researchLabGuide.step2')}</li>
-            <li>{t('researchLabGuide.step3')}</li>
-            <li>{t('researchLabGuide.step4')}</li>
+            {guideSteps.map((key) => (
+              <li key={key}>{t(`researchLabGuide.${key}`)}</li>
+            ))}
           </ol>
           <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
             {t('researchLabGuide.interfaceMap')}
@@ -1433,28 +1619,14 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
     if (file && HIDDEN_FILENAMES.has(file.name)) return;
     setSelectedFileRaw(file);
   }, [HIDDEN_FILENAMES]);
-  const [sectionsOpen, setSectionsOpen] = useState({
-    ideation: true,
-    experiment: true,
-    publication: true,
-  });
 
   const projectRoot = selectedProject?.fullPath || selectedProject?.path || '';
   const projectName = selectedProject?.name;
   const projectIdentity = `${projectRoot || ''}::${projectName || ''}`;
 
   useEffect(() => {
-    if (!projectName) {
-      setSelectedFile(null);
-      return;
-    }
-    const briefRelativePath = `.pipeline/docs/${DEFAULT_RESEARCH_BRIEF_FILENAME}`;
-    setSelectedFile({
-      name: DEFAULT_RESEARCH_BRIEF_FILENAME,
-      relativePath: briefRelativePath,
-      path: `${projectRoot.replace(/[/\\]+$/, '')}/${briefRelativePath}`,
-    });
-  }, [projectIdentity, projectName, projectRoot]);
+    setSelectedFileRaw(null);
+  }, [projectIdentity]);
 
   const loadData = useCallback(async () => {
     if (!projectName) {
@@ -1548,22 +1720,51 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
         return false;
       });
       // Exclude research_brief.json and tasks.json from user-visible artifacts
-      const HIDDEN_FILES = new Set([DEFAULT_RESEARCH_BRIEF_FILENAME, DEFAULT_TASKS_FILENAME]);
-      setArtifacts(logFiles.filter((f) => !HIDDEN_FILES.has(f.name)));
+      setArtifacts(sortArtifactsByStageAndPath(
+        logFiles.filter((f) => !HIDDEN_FILENAMES.has(f.name))
+      ));
     } catch (e) {
       console.error('ResearchLab load:', e);
     } finally {
       setLoading(false);
       setTasksLoading(false);
     }
-  }, [projectName, projectRoot]);
+  }, [projectName, projectRoot, HIDDEN_FILENAMES]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  const toggleSection = useCallback((key) => {
-    setSectionsOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
+
+  useEffect(() => {
+    if (!projectName || artifacts.length === 0) {
+      setSelectedFileRaw(null);
+      return;
+    }
+
+    setSelectedFileRaw((current) => {
+      if (!current) return artifacts[0];
+      return artifacts.find((artifact) => artifact.relativePath === current.relativePath) || artifacts[0];
+    });
+  }, [artifacts, projectName]);
 
   const hasContent = instance || config || artifacts.length > 0 || tasks.length > 0;
+  const sidebar = (
+    <div className="space-y-4">
+      <ArtifactsCard
+        artifacts={artifacts}
+        onSelect={setSelectedFile}
+        selectedPath={selectedFile?.relativePath}
+      />
+
+      {selectedFile ? (
+        <FileViewer
+          projectName={projectName}
+          file={selectedFile}
+          onClose={() => setSelectedFile(null)}
+        />
+      ) : (
+        <ArtifactPreviewEmptyState hasArtifacts={artifacts.length > 0} />
+      )}
+    </div>
+  );
 
   if (!selectedProject) {
     return (
@@ -1600,6 +1801,10 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
             <div className="space-y-4 min-w-0">
               <UsageGuideNotice t={t} onNavigateToChat={onNavigateToChat} />
 
+              <div className="lg:hidden">
+                {sidebar}
+              </div>
+
               <TaskPipelineBoard
                 tasks={tasks}
                 isLoading={tasksLoading}
@@ -1617,62 +1822,18 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                   <FolderOpen className="w-14 h-14 opacity-40" />
                   <p>No research data found in this project.</p>
                   <p className="text-xs max-w-md text-center">
-                    Start a research pipeline to initialize project artifacts.
+                    Use the <code className="bg-muted px-1 rounded">inno-pipeline-planner</code> skill in Chat to initialize the 5-stage research pipeline and its artifacts.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <Beaker className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                        Artifacts Explorer
-                      </h3>
-                      <span className="text-xs text-muted-foreground">{artifacts.length} files</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Browse artifacts generated across Survey, Ideation, Experiment, Publication, and Promotion stages.
-                    </p>
-                    {artifacts.length > 0 ? (
-                      <ArtifactsCard
-                        artifacts={artifacts}
-                        onSelect={setSelectedFile}
-                        selectedPath={selectedFile?.relativePath}
-                      />
-                    ) : (
-                      <div className="text-xs text-muted-foreground rounded-md border border-dashed border-border px-3 py-4">
-                        No stage artifacts found yet. Run tasks first, then refresh.
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <div className="space-y-3" />
               )}
             </div>
 
             <div className="hidden lg:block lg:sticky lg:top-4">
-              {selectedFile ? (
-                <FileViewer
-                  projectName={projectName}
-                  file={selectedFile}
-                  onClose={() => setSelectedFile(null)}
-                />
-              ) : (
-                <div className="rounded-lg border border-dashed border-border bg-card/60 px-4 py-6 text-center text-xs text-muted-foreground">
-                  Select any artifact file to preview it here.
-                </div>
-              )}
+              {sidebar}
             </div>
           </div>
-
-          {selectedFile && (
-            <div className="lg:hidden mt-4">
-              <FileViewer
-                projectName={projectName}
-                file={selectedFile}
-                onClose={() => setSelectedFile(null)}
-              />
-            </div>
-          )}
         </div>
       </ScrollArea>
     </div>
