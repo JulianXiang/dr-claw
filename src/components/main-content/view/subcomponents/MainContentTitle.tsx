@@ -34,6 +34,10 @@ function getTabTitle(activeTab: AppTab, shouldShowTasksTab: boolean, t: (key: st
     return t('tabs.skills');
   }
 
+  if (activeTab === 'news') {
+    return t('tabs.news');
+  }
+
   if (activeTab === 'tasks' && shouldShowTasksTab) {
     return 'TaskMaster';
   }
@@ -61,6 +65,7 @@ export default function MainContentTitle({
   const showChatNewSession = activeTab === 'chat' && !selectedSession;
   const isDashboard = activeTab === 'dashboard';
   const isGlobalSkills = activeTab === 'skills' && !selectedProject;
+  const isGlobalNews = activeTab === 'news' && !selectedProject;
 
   return (
     <div className="min-w-0 flex items-center gap-2 flex-1 overflow-x-auto scrollbar-hide">
@@ -87,6 +92,15 @@ export default function MainContentTitle({
             </h2>
             <div className="text-[12px] text-muted-foreground truncate leading-tight mt-0.5">
               {t('projectDashboard.skillsDescription')}
+            </div>
+          </div>
+        ) : isGlobalNews ? (
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-bold text-foreground leading-tight">
+              {t('newsDashboard.title', 'Paper News')}
+            </h2>
+            <div className="text-[12px] text-muted-foreground truncate leading-tight mt-0.5">
+              {t('newsDashboard.subtitle', 'Discover the latest research from arXiv, automatically scored by relevance, recency, popularity, and quality.')}
             </div>
           </div>
         ) : activeTab === 'chat' && selectedSession && selectedProject ? (

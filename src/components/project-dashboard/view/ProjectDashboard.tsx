@@ -172,8 +172,8 @@ export default function ProjectDashboard({
 
   if (projects.length === 0) {
     return (
-      <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_22%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_22%),linear-gradient(180deg,rgba(8,15,28,0.98),rgba(15,23,42,0.98))]">
-        <div className="mx-auto flex h-full w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="h-full overflow-auto bg-background">
+        <div className="mx-auto flex h-full w-full max-w-[1600px] items-center p-4 sm:p-6">
           <div className="relative w-full overflow-hidden rounded-[32px] border border-border/60 bg-card/70 p-8 text-center shadow-sm backdrop-blur sm:p-12">
             <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-sky-500/10 via-cyan-400/10 to-emerald-400/10" />
             <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -192,11 +192,11 @@ export default function ProjectDashboard({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_22%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_22%),linear-gradient(180deg,rgba(8,15,28,0.98),rgba(15,23,42,0.98))]">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <section className="relative overflow-hidden rounded-[32px] border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.24),transparent_34%),linear-gradient(135deg,rgba(248,250,252,0.96),rgba(240,249,255,0.90))] p-6 shadow-sm dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,rgba(2,6,23,0.96),rgba(15,23,42,0.92))] sm:p-7">
-          <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-sky-200/50 blur-3xl dark:bg-sky-500/15" />
-          <div className="absolute bottom-0 right-20 h-24 w-24 rounded-full bg-emerald-200/40 blur-2xl dark:bg-emerald-500/10" />
+    <div className="h-full overflow-auto bg-background">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-4 sm:p-6">
+        <section className="relative overflow-hidden rounded-[32px] border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.14),transparent_34%),linear-gradient(135deg,rgba(250,251,252,0.97),rgba(246,250,252,0.93))] p-6 shadow-sm dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_34%),linear-gradient(135deg,rgba(6,10,20,0.96),rgba(15,23,42,0.90))] sm:p-7">
+          <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-sky-100/40 blur-3xl dark:bg-sky-500/12" />
+          <div className="absolute bottom-0 right-20 h-24 w-24 rounded-full bg-emerald-100/30 blur-2xl dark:bg-emerald-500/8" />
 
           <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.85fr)]">
             <div className="min-w-0">

@@ -92,15 +92,14 @@ function ScoreBar({ label, score, max = 3, barClass, dotClass }: { label: string
 
 function StatCard({ icon: Icon, label, value, accent }: { icon: typeof Search; label: string; value: string | number; accent: string }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/50">
-      <div className={`absolute -right-3 -top-3 h-14 w-14 rounded-full ${accent} blur-2xl`} />
-      <div className="relative flex items-center gap-3">
-        <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent.replace('blur-2xl', '').replace('/40', '/15').replace('/20', '/15')}`}>
-          <Icon className="h-4 w-4 text-foreground/70" />
+    <div className="rounded-2xl border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/45">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">{label}</div>
+          <div className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{value}</div>
         </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-          <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${accent}`}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
     </div>
@@ -114,16 +113,16 @@ function PaperCard({ paper, index }: { paper: Paper; index: number }) {
 
   const isTopPaper = index < 3;
   const borderAccent = isTopPaper
-    ? 'border-violet-200/70 dark:border-violet-800/40'
+    ? 'border-amber-200/80 dark:border-amber-800/50'
     : 'border-border/60';
 
   return (
     <article className={`group relative overflow-hidden rounded-[22px] border ${borderAccent} bg-card/85 shadow-sm backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg`}>
       {/* Top accent strip */}
       {isTopPaper ? (
-        <div className="h-[3px] bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500" />
+        <div className="h-[3px] bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" />
       ) : (
-        <div className="h-[2px] bg-gradient-to-r from-sky-500/40 via-violet-500/40 to-fuchsia-500/40" />
+        <div className="h-[2px] bg-gradient-to-r from-amber-500/40 via-orange-500/40 to-rose-500/40" />
       )}
 
       <div className="p-5">
@@ -132,7 +131,7 @@ function PaperCard({ paper, index }: { paper: Paper; index: number }) {
           <div className="flex items-center gap-2.5">
             <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold ${
               isTopPaper
-                ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm'
+                ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-sm'
                 : 'bg-muted/80 text-muted-foreground'
             }`}>
               {index + 1}
@@ -163,7 +162,7 @@ function PaperCard({ paper, index }: { paper: Paper; index: number }) {
         {/* Tags */}
         <div className="mt-3 flex flex-wrap gap-1.5">
           {paper.matched_domain && (
-            <span className="rounded-lg border border-violet-200/80 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:border-violet-800/50 dark:bg-violet-950/40 dark:text-violet-300">
+            <span className="rounded-lg border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300">
               {paper.matched_domain}
             </span>
           )}
@@ -419,34 +418,34 @@ export default function NewsDashboard() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[radial-gradient(ellipse_at_top_left,rgba(56,189,248,0.10),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_at_top_left,rgba(14,165,233,0.08),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(168,85,247,0.06),transparent_50%)]">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="h-full overflow-y-auto bg-background">
+      <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
 
         {/* ── Hero Header ── */}
-        <section className="relative overflow-hidden rounded-[32px] border border-border/50 bg-gradient-to-br from-white/95 via-violet-50/40 to-sky-50/40 p-7 shadow-sm dark:from-slate-950/95 dark:via-violet-950/20 dark:to-sky-950/20 sm:p-8">
+        <section className="relative overflow-hidden rounded-[32px] border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.14),transparent_34%),linear-gradient(135deg,rgba(252,250,246,0.97),rgba(255,251,247,0.94))] p-6 shadow-sm dark:bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_34%),linear-gradient(135deg,rgba(27,21,16,0.96),rgba(29,21,24,0.92))] sm:p-7">
           {/* Decorative orbs */}
-          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-300/30 blur-3xl dark:bg-violet-600/15" />
-          <div className="pointer-events-none absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-sky-300/25 blur-3xl dark:bg-sky-600/10" />
+          <div className="pointer-events-none absolute -right-12 -top-10 h-36 w-36 rounded-full bg-amber-100/45 blur-3xl dark:bg-amber-500/12" />
+          <div className="pointer-events-none absolute bottom-0 right-20 h-24 w-24 rounded-full bg-rose-100/35 blur-2xl dark:bg-rose-500/8" />
 
-          <div className="relative grid gap-6 xl:grid-cols-[1fr_auto]">
+          <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/60 bg-white/70 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-600 shadow-sm dark:border-violet-800/50 dark:bg-slate-950/50 dark:text-violet-300">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-amber-700 shadow-sm dark:border-amber-800/60 dark:bg-slate-950/60 dark:text-amber-200">
                 <Sparkles className="h-3.5 w-3.5" />
                 {t('newsDashboard.badge', 'Research News')}
               </div>
 
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                 {t('newsDashboard.title', 'Paper News')}
-              </h2>
-              <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
                 {t('newsDashboard.subtitle', 'Discover the latest research from arXiv, automatically scored by relevance, recency, popularity, and quality.')}
               </p>
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="mt-5 flex flex-wrap items-center gap-3">
                 <Button
                   onClick={handleSearch}
                   disabled={isSearching}
-                  className="h-10 rounded-full gap-2.5 px-6 shadow-sm"
+                  className="h-10 gap-2.5 rounded-xl bg-amber-600 px-5 text-white shadow-sm hover:bg-amber-700"
                   size="lg"
                 >
                   {isSearching ? (
@@ -461,7 +460,7 @@ export default function NewsDashboard() {
                 <Button
                   variant={showSettings ? 'secondary' : 'outline'}
                   onClick={() => setShowSettings((v) => !v)}
-                  className="h-10 rounded-full gap-2 bg-white/50 backdrop-blur dark:bg-slate-950/30"
+                  className="h-10 gap-2 rounded-xl border-amber-200/70 bg-background/85 text-amber-900 backdrop-blur hover:bg-amber-50 dark:border-amber-800/40 dark:bg-slate-950/30 dark:text-amber-100 dark:hover:bg-amber-950/20"
                 >
                   <Settings2 className="h-4 w-4" />
                   {t('newsDashboard.settings', 'Research Interests')}
@@ -480,10 +479,10 @@ export default function NewsDashboard() {
 
             {/* Stats cards (shown when results exist) */}
             {papers.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 xl:w-52">
-                <StatCard icon={Search} label="Scanned" value={results?.total_found ?? 0} accent="bg-sky-400/40 dark:bg-sky-500/20" />
-                <StatCard icon={Filter} label="Filtered" value={results?.total_filtered ?? 0} accent="bg-emerald-400/40 dark:bg-emerald-500/20" />
-                <StatCard icon={BarChart3} label="Top Picks" value={papers.length} accent="bg-violet-400/40 dark:bg-violet-500/20" />
+              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                <StatCard icon={Search} label="Scanned" value={results?.total_found ?? 0} accent="bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300" />
+                <StatCard icon={Filter} label="Filtered" value={results?.total_filtered ?? 0} accent="bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300" />
+                <StatCard icon={BarChart3} label="Top Picks" value={papers.length} accent="bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300" />
               </div>
             )}
           </div>
@@ -502,7 +501,7 @@ export default function NewsDashboard() {
 
         {/* ── Settings Panel ── */}
         {showSettings && config && (
-          <section className="rounded-[28px] border border-border/50 bg-card/80 p-6 shadow-sm backdrop-blur space-y-5">
+          <section className="space-y-5 rounded-[28px] border border-border/60 bg-card/78 p-6 shadow-sm backdrop-blur">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
@@ -567,19 +566,24 @@ export default function NewsDashboard() {
         {/* ── Paper Results ── */}
         {papers.length > 0 && (
           <>
-            <section className="flex items-end justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold tracking-tight text-foreground">
-                  {t('newsDashboard.papersTitle', 'Recommended Papers')}
-                </h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('newsDashboard.papersSubtitle', 'Sorted by composite score — relevance 40%, popularity 30%, recency 20%, quality 10%')}
-                </p>
+            <section className="rounded-2xl border border-border/80 bg-card/95 p-4 shadow-sm">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-amber-600 dark:text-amber-300">
+                    {t('newsDashboard.badge', 'Research News')}
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold text-foreground">
+                    {t('newsDashboard.papersTitle', 'Recommended Papers')}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t('newsDashboard.papersSubtitle', 'Sorted by composite score — relevance 40%, popularity 30%, recency 20%, quality 10%')}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="w-fit rounded-xl gap-1.5" onClick={handleSearch} disabled={isSearching}>
+                  <RefreshCw className={`h-3.5 w-3.5 ${isSearching ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" className="rounded-full gap-1.5 text-xs" onClick={handleSearch} disabled={isSearching}>
-                <RefreshCw className={`h-3.5 w-3.5 ${isSearching ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
             </section>
 
             <section className="grid gap-4 xl:grid-cols-2">
@@ -592,18 +596,18 @@ export default function NewsDashboard() {
 
         {/* ── Empty State ── */}
         {papers.length === 0 && !isSearching && !isLoadingConfig && (
-          <section className="relative overflow-hidden rounded-[32px] border border-border/50 bg-card/60 p-10 text-center shadow-sm backdrop-blur sm:p-14">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-violet-500/[0.06] to-transparent" />
-            <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-sky-100 shadow-sm dark:from-violet-900/30 dark:to-sky-900/30">
-              <BookOpen className="h-7 w-7 text-violet-600 dark:text-violet-400" />
+          <section className="relative overflow-hidden rounded-[32px] border border-border/60 bg-card/70 p-10 text-center shadow-sm backdrop-blur sm:p-14">
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-amber-500/10 via-orange-400/10 to-rose-400/10" />
+            <div className="relative mx-auto mt-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              <BookOpen className="h-7 w-7" />
             </div>
-            <h2 className="relative mt-6 text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="relative mt-6 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {t('newsDashboard.emptyTitle', 'No papers yet')}
             </h2>
-            <p className="relative mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            <p className="relative mx-auto mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
               {t('newsDashboard.emptyDescription', 'Configure your research interests above, then click "Start My Day" to discover the latest papers from arXiv.')}
             </p>
-            <Button onClick={handleSearch} disabled={isSearching} className="relative mt-6 rounded-full gap-2 shadow-sm" size="lg">
+            <Button onClick={handleSearch} disabled={isSearching} className="relative mt-6 rounded-xl bg-amber-600 gap-2 text-white shadow-sm hover:bg-amber-700" size="lg">
               <Zap className="h-4 w-4" />
               Get Started
             </Button>

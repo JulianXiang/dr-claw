@@ -276,7 +276,8 @@ const SOURCE_PLATFORM_PATTERN = /^(来源: 平台自研|Source: VibeLab)$/i;
 const UI_TEXT: Record<LocaleKey, Record<string, string>> = {
   zh: {
     loading: '加载技能中...',
-    title: '技能导航',
+    eyebrow: '共享技能目录',
+    title: '技能库',
     subtitle: '按主意图、技术能力、领域和治理状态浏览 100+ 技能，而不是把工作流阶段和技术类别混在一起。',
     refresh: '刷新',
     noRoots: '当前项目中未找到技能目录。',
@@ -355,7 +356,8 @@ const UI_TEXT: Record<LocaleKey, Record<string, string>> = {
   },
   en: {
     loading: 'Loading skills...',
-    title: 'Skill Explorer',
+    eyebrow: 'Shared Skill Catalog',
+    title: 'Skills Library',
     subtitle: 'Browse 100+ skills by primary intent, capability, domain, and governance state instead of mixing workflow stage with technical type.',
     refresh: 'Refresh',
     noRoots: 'No skill directories found in this project.',
@@ -434,7 +436,8 @@ const UI_TEXT: Record<LocaleKey, Record<string, string>> = {
   },
   ko: {
     loading: 'Loading skills...',
-    title: 'Skill Explorer',
+    eyebrow: '공유 스킬 카탈로그',
+    title: '스킬 라이브러리',
     subtitle: 'Browse 100+ skills by primary intent, capability, domain, and governance state instead of mixing workflow stage with technical type.',
     refresh: 'Refresh',
     noRoots: 'No skill directories found in this project.',
@@ -1846,8 +1849,11 @@ export default function SkillsDashboard() {
             <div className="min-w-0 flex-1">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-700 shadow-sm dark:border-sky-800/60 dark:bg-slate-950/60 dark:text-sky-200">
                 <Sparkles className="h-3.5 w-3.5" />
-                {text.title}
+                {text.eyebrow}
               </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                {text.title}
+              </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
                 {text.subtitle}
               </p>
