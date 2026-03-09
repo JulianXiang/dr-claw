@@ -423,7 +423,7 @@ export function useChatRealtimeHandlers({
 
     switch (latestMessage.type) {
       case 'session-created':
-        if (latestMessage.sessionId && !currentSessionId) {
+        if (latestMessage.sessionId && (!currentSessionId || currentSessionId.startsWith('new-session-'))) {
           sessionStorage.setItem('pendingSessionId', latestMessage.sessionId);
           if ((latestMessage as any).provider === 'gemini') {
             sessionStorage.setItem('geminiSessionId', latestMessage.sessionId);
