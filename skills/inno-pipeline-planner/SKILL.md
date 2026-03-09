@@ -32,7 +32,7 @@ Check:
 - `.pipeline/docs/research_brief.json`
 - `.pipeline/tasks/tasks.json`
 - `instance.json` (legacy source)
-- Content in `Survey/`, `Ideation/`, `Experiment/`, `Publication/` directories (to detect pre-existing artifacts)
+- Content in `Survey/`, `Ideation/`, `Experiment/`, `Publication/`, and `Promotion/` directories (to detect pre-existing artifacts)
 
 If brief exists, summarize title, goal, current `startStage`, and completion status, then ask:
 - Refine existing brief/tasks
@@ -52,8 +52,9 @@ Capture at least:
 - If the user mainly needs literature review, gap analysis, or reference collection -> `startStage = "survey"`
 - If the user has a concrete idea with problem framing and success criteria -> `startStage = "experiment"`
 - If the user has experimental results and analysis -> `startStage = "publication"`
+- If the user already has a paper/manuscript and mainly needs a homepage, slide deck, narration, or demo assets -> `startStage = "promotion"`
 - If the user is starting from scratch or only has a vague direction -> `startStage = "survey"` (default)
-- Detect automatically from conversation context (e.g., "I already ran all experiments" implies publication).
+- Detect automatically from conversation context (e.g., "I already ran all experiments" implies publication; "I need slides for my paper" implies promotion).
 
 Typical question buckets:
 - Project identity: topic, prior paper/method/dataset, target venue (optional)
@@ -63,7 +64,7 @@ Typical question buckets:
 Adapt to context:
 - Skip already-provided details.
 - **Skip questions for stages before `startStage`**: If starting from experiment, do not ask survey or ideation questions in detail — just capture a brief summary of the existing context in those sections.
-- If exploratory, keep experiment/publication sections lightweight.
+- If exploratory, keep experiment/publication/promotion sections lightweight.
 - If user provides concrete plan, prepare for `pipeline.mode = "plan"`; otherwise use `"idea"`.
 
 ## 3) Write pipeline files

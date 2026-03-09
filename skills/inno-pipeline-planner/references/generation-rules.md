@@ -37,6 +37,7 @@ Create when missing:
   - Use `"ideation"` when the user already has enough literature context and needs to shape a direction.
   - Use `"experiment"` when user already has a research idea, problem framing, and success criteria.
   - Use `"publication"` when user already has experimental results and analysis.
+  - Use `"promotion"` when user already has a manuscript or publication draft and mainly needs presentation or dissemination assets.
 - Make `task_blueprints` and `quality_gate` domain-specific to the topic.
 - For skipped stages (before `startStage`): still populate `sections.*` with whatever context the user provided, but `task_blueprints` in those stages will not produce tasks.
 
@@ -51,7 +52,7 @@ Stage order: `survey` < `ideation` < `experiment` < `publication` < `promotion`.
    - Use `Refine <field>` when already populated.
 4. Add one quality-gate review task at the end of each active stage with `quality_gate`.
 5. Order tasks by execution flow:
-   - exploration -> implementation -> analysis -> writing
+   - exploration -> implementation -> analysis -> writing -> scripting/rendering/narration/delivery
 6. Add dependencies when obvious (for example, implementation depends on exploration in the same stage).
 
 ## `nextActionPrompt` template

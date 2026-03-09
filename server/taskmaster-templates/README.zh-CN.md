@@ -27,7 +27,7 @@
 - `format`：当前为 `research-brief-json`。
 - `fileName`：通常为 `research_brief.json`。
 - `metaFields`：Meta 区域表单定义。
-- `sectionFields`：分阶段表单定义（`ideation/experiment/publication`）。
+- `sectionFields`：分阶段表单定义（`survey/ideation/experiment/publication/promotion`）。
 - `pipeline`：任务生成蓝图。
 
 ## 表单字段定义
@@ -89,7 +89,7 @@
 - `id`：蓝图任务 ID（稳定）。
 - `title`：任务标题。
 - `description`：任务描述。
-- `taskType`：任务类型（如 `analysis`、`implementation`、`writing`、`exploration`）。
+- `taskType`：任务类型（如 `analysis`、`implementation`、`writing`、`exploration`、`scripting`、`rendering`、`narration`、`delivery`）。
 - `priority`：可选，`low/medium/high`。
 - `dependencies`：可选，依赖任务 ID 数组。
 - `inputsNeeded`：可选，输入依赖路径或条件。
@@ -115,7 +115,8 @@
       { "key": "problem_framing", "label": "问题界定", "path": "sections.ideation.problem_framing" }
     ],
     "experiment": [],
-    "publication": []
+    "publication": [],
+    "promotion": []
   },
   "pipeline": {
     "version": "1.1",
@@ -135,7 +136,8 @@
         "recommended_skills": ["inno-idea-generation"]
       },
       "experiment": { "task_blueprints": [] },
-      "publication": { "task_blueprints": [] }
+      "publication": { "task_blueprints": [] },
+      "promotion": { "task_blueprints": [] }
     }
   }
 }

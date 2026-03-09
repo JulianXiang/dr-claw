@@ -35,6 +35,13 @@
       { "key": "figures_tables_plan", "label": "Figures/Tables Plan", "path": "sections.publication.figures_tables_plan", "placeholder": "Ablation and benchmark tables" },
       { "key": "artifact_plan", "label": "Artifact Plan", "path": "sections.publication.artifact_plan", "placeholder": "Code/config/repro script release" },
       { "key": "submission_checklist", "label": "Submission Checklist", "path": "sections.publication.submission_checklist", "type": "array", "placeholder": "One item per line" }
+    ],
+    "promotion": [
+      { "key": "slide_outline", "label": "Slide Outline", "path": "sections.promotion.slide_outline", "placeholder": "One slide or scene per line" },
+      { "key": "deck_style", "label": "Deck Style", "path": "sections.promotion.deck_style", "placeholder": "Visual style, color, layout, and pacing guidance" },
+      { "key": "homepage_plan", "label": "Homepage Plan", "path": "sections.promotion.homepage_plan", "placeholder": "Sections, assets, links, and CTA for the project page" },
+      { "key": "tts_config", "label": "TTS Config", "path": "sections.promotion.tts_config", "placeholder": "Voice, engine, pacing, and narration constraints" },
+      { "key": "video_assembly_plan", "label": "Video Assembly Plan", "path": "sections.promotion.video_assembly_plan", "placeholder": "How slides, audio, captions, and demo clips should be assembled" }
     ]
   },
   "pipeline": {
@@ -175,6 +182,47 @@
         "recommended_skills": [
           "inno-paper-writing",
           "inno-reference-audit"
+        ]
+      },
+      "promotion": {
+        "required_elements": [
+          "sections.promotion.slide_outline"
+        ],
+        "optional_elements": [
+          "sections.promotion.deck_style",
+          "sections.promotion.tts_config",
+          "sections.promotion.video_assembly_plan",
+          "sections.promotion.homepage_plan"
+        ],
+        "quality_gate": [
+          "Slide flow reflects the method contribution and strongest results",
+          "Homepage and narration plans are specific enough to produce assets"
+        ],
+        "task_blueprints": [
+          {
+            "id": "method_promotion_outline_and_script",
+            "title": "Draft slide outline, speaking track, and homepage structure",
+            "description": "Turn the paper narrative into a promotion-ready deck outline, narration plan, and homepage information architecture.",
+            "taskType": "scripting",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "method_promotion_visual_assets",
+            "title": "Generate slide visuals and supporting homepage assets",
+            "description": "Prepare presentation visuals and homepage-ready figures from paper assets.",
+            "taskType": "rendering",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "method_promotion_audio_video_delivery",
+            "title": "Produce narration audio and assemble delivery outputs",
+            "description": "Generate TTS narration and package slide, homepage, and demo-video deliverables.",
+            "taskType": "delivery",
+            "recommended_skills": ["making-academic-presentations"]
+          }
+        ],
+        "recommended_skills": [
+          "making-academic-presentations"
         ]
       }
     }

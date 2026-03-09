@@ -6,16 +6,17 @@ Project-scoped skills for the Research flow (idea generation, code survey, imple
 
 When a project is **created in VibeLab**, the app creates **`instance.json`** at the project root (single config with **absolute paths**) and these preset directories:
 
+- `Survey/references`, `Survey/reports`
 - `Ideation/ideas`, `Ideation/references`
 - `Experiment/code_references`, `Experiment/datasets`, `Experiment/core_code`, `Experiment/analysis`
-- `Publication/paper`, `Publication/homepage`, `Publication/slide`
-- `Research`
+- `Publication/paper`
+- `Promotion/homepage`, `Promotion/slides`, `Promotion/audio`, `Promotion/video`
 
 Skills read paths from `instance.json` and write logs under each area’s `logs/` as needed.
 
 ## Skill taxonomy
 
-16 skills organized by pipeline stage. Depth follows natural structure — sub-groups only where real internal phases exist.
+17 skills organized by pipeline stage. Depth follows natural structure — sub-groups only where real internal phases exist.
 
 ```
 skills/
@@ -46,6 +47,9 @@ skills/
 │  │  └─ inno-reference-audit               Citation verification and fake citation prevention
 │  └─ inno-rclone-to-overleaf               Access & sync Overleaf projects via CLI
 │
+├─ Promotion
+│  └─ making-academic-presentations         Slides, narration, TTS audio, and demo-video generation
+│
 └─ Domain-Specific
    └─ bioinformatics-init-analysis          CyTOF / scRNA-seq / flow cytometry pipeline
 ```
@@ -53,9 +57,9 @@ skills/
 ### Pipeline flow
 
 ```
-Orchestration ──► Research & Discovery ──► Ideation ──► Experiment ──► Publication
-                  (can enter here if          │
-                   plan already exists) ──────┘ skip if plan branch
+Orchestration ──► Research & Discovery ──► Ideation ──► Experiment ──► Publication ──► Promotion
+                  (can enter here if
+                   plan already exists) ───────────────────────────────┘ skip if plan branch
 ```
 
 ### Depth rationale
@@ -67,6 +71,7 @@ Orchestration ──► Research & Discovery ──► Ideation ──► Experi
 | Ideation | 2 | Two tightly-coupled skills (generate → evaluate), flat is sufficient |
 | Experiment | 2 | Two sequential skills (dev → analysis), flat is sufficient |
 | Publication | 3 | Authoring vs Review & Polish are distinct concerns with different triggers |
+| Promotion | 2 | Presentation and dissemination assets are a separate downstream stage |
 | Domain-Specific | 2 | Extensible bucket; currently one entry |
 
 > **Note:** Folder structure on disk is still flat (`skills/<skill-name>/`). This taxonomy is a logical grouping for documentation and navigation; `stage-skill-map.json` encodes the runtime mapping used by the Pipeline Board.
@@ -121,6 +126,7 @@ Orchestration ──► Research & Discovery ──► Ideation ──► Experi
     - Paper Writing
     - Paper Review
     - Publication Sync
+    - Promotion Assets
   - Use `stageOverrides` for deterministic mapping when keyword inference is ambiguous.
 
 ## Script reuse (plan-scripts-reuse)
@@ -134,3 +140,4 @@ Orchestration ──► Research & Discovery ──► Ideation ──► Experi
 - **Phase 1**: Skills 1–3 (prepare, idea-generation, code-survey Phase A) for "idea-only" workflows.
 - **Phase 2**: Add remaining skills for full pipeline (code survey Phase B → experiment-dev → experiment-analysis).
 - **Phase 3**: Paper writing, review, and polish (`inno-paper-writing` + `inno-paper-reviewer` + `inno-humanizer`) for publication-ready deliverables.
+- **Phase 4**: Promotion assets (`making-academic-presentations`) for homepage, slide deck, audio, and demo-video outputs.

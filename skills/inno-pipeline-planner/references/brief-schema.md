@@ -36,6 +36,13 @@ Canonical contract for `.pipeline/docs/research_brief.json`.
       "figures_tables_plan": "<string>",
       "artifact_plan": "<string>",
       "submission_checklist": []
+    },
+    "promotion": {
+      "slide_outline": "<string>",
+      "deck_style": "<string>",
+      "tts_config": "<string>",
+      "video_assembly_plan": "<string>",
+      "homepage_plan": "<string>"
     }
   },
   "pipeline": {
@@ -166,6 +173,52 @@ Canonical contract for `.pipeline/docs/research_brief.json`.
           }
         ],
         "recommended_skills": ["inno-paper-writing", "inno-reference-audit", "inno-rclone-to-overleaf"]
+      },
+      "promotion": {
+        "required_elements": [
+          "sections.promotion.slide_outline"
+        ],
+        "optional_elements": [
+          "sections.promotion.deck_style",
+          "sections.promotion.tts_config",
+          "sections.promotion.video_assembly_plan",
+          "sections.promotion.homepage_plan"
+        ],
+        "quality_gate": [
+          "Slide outline and homepage plan cover key paper contributions",
+          "Deck style is defined for visual consistency"
+        ],
+        "task_blueprints": [
+          {
+            "id": "promotion_draft_outline",
+            "title": "Draft slide outline and narration scripts",
+            "description": "Create per-slide content plan with talking points based on paper contributions.",
+            "taskType": "scripting",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "promotion_prepare_homepage",
+            "title": "Prepare research homepage content and assets",
+            "description": "Organize homepage sections, key visuals, and links for project promotion.",
+            "taskType": "delivery",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "promotion_generate_slides",
+            "title": "Generate slide images from outline and paper figures",
+            "description": "Render slide visuals while preserving paper-figure quality where possible.",
+            "taskType": "rendering",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "promotion_generate_narration",
+            "title": "Generate TTS audio for slide narration",
+            "description": "Generate one audio track per slide and prepare inputs for demo-video assembly.",
+            "taskType": "narration",
+            "recommended_skills": ["making-academic-presentations"]
+          }
+        ],
+        "recommended_skills": ["making-academic-presentations"]
       }
     }
   }

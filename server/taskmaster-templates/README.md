@@ -27,7 +27,7 @@ Each template JSON should include:
 - `format`: Currently `research-brief-json`.
 - `fileName`: Usually `research_brief.json`.
 - `metaFields`: Array of meta form field definitions.
-- `sectionFields`: Form field definitions grouped by `ideation`, `experiment`, `publication`.
+- `sectionFields`: Form field definitions grouped by `survey`, `ideation`, `experiment`, `publication`, `promotion`.
 - `pipeline`: Task generation blueprint (stage requirements, quality gates, and task blueprints).
 
 ## Field Definition Schema
@@ -89,7 +89,7 @@ Each item in `task_blueprints` supports:
 - `id`: Stable blueprint id.
 - `title`: Task title shown in UI.
 - `description`: Task description.
-- `taskType`: Suggested type (for example `analysis`, `implementation`, `writing`, `exploration`).
+- `taskType`: Suggested type (for example `analysis`, `implementation`, `writing`, `exploration`, `scripting`, `rendering`, `narration`, `delivery`).
 - `priority`: Optional (`low`, `medium`, `high`).
 - `dependencies`: Optional array of task IDs.
 - `inputsNeeded`: Optional array of required JSON paths or inputs.
@@ -115,7 +115,8 @@ Each item in `task_blueprints` supports:
       { "key": "problem_framing", "label": "Problem Framing", "path": "sections.ideation.problem_framing" }
     ],
     "experiment": [],
-    "publication": []
+    "publication": [],
+    "promotion": []
   },
   "pipeline": {
     "version": "1.1",
@@ -135,7 +136,8 @@ Each item in `task_blueprints` supports:
         "recommended_skills": ["inno-idea-generation"]
       },
       "experiment": { "task_blueprints": [] },
-      "publication": { "task_blueprints": [] }
+      "publication": { "task_blueprints": [] },
+      "promotion": { "task_blueprints": [] }
     }
   }
 }

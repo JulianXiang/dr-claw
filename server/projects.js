@@ -70,7 +70,7 @@ import os from 'os';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIBELAB_SKILLS_DIR = path.join(__dirname, '..', 'skills');
 const PROJECT_SKILL_FOLDERS = ['.claude', '.agents', '.cursor', '.gemini'];
-const PROJECT_PIPELINE_FOLDERS = ['Survey', 'Ideation', 'Experiment', 'Publication'];
+const PROJECT_PIPELINE_FOLDERS = ['Survey', 'Ideation', 'Experiment', 'Publication', 'Promotion'];
 
 function normalizeTaskStatus(status) {
     const raw = String(status || '').trim().toLowerCase();
@@ -1512,7 +1512,7 @@ async function deleteProject(projectName, force = false) {
 /**
  * Create .claude, .agents, .cursor and their skills subdirs in the project,
  * and symlink each VibeLab skill directory into those skills subdirs.
- * Also creates pipeline folders: Ideation, Experiment, Publication.
+ * Also creates pipeline folders: Survey, Ideation, Experiment, Publication, Promotion.
  * Failures are logged but do not throw (project add still succeeds).
  */
 async function collectSkillDirs(baseDir) {
@@ -1643,8 +1643,10 @@ async function ensureProjectSkillLinks(projectPath) {
       'Experiment/core_code',
       'Experiment/analysis',
       'Publication/paper',
-      'Publication/homepage',
-      'Publication/slide'
+      'Promotion/homepage',
+      'Promotion/slides',
+      'Promotion/audio',
+      'Promotion/video'
     ];
     for (const rel of presetSubdirs) {
       await fs.mkdir(path.join(projectPath, rel), { recursive: true });
@@ -1680,9 +1682,13 @@ async function ensureProjectSkillLinks(projectPath) {
         analysis: path.join(projectPath, 'Experiment', 'analysis')
       },
       Publication: {
-        paper: path.join(projectPath, 'Publication', 'paper'),
-        homepage: path.join(projectPath, 'Publication', 'homepage'),
-        slide: path.join(projectPath, 'Publication', 'slide')
+        paper: path.join(projectPath, 'Publication', 'paper')
+      },
+      Promotion: {
+        homepage: path.join(projectPath, 'Promotion', 'homepage'),
+        slides: path.join(projectPath, 'Promotion', 'slides'),
+        audio: path.join(projectPath, 'Promotion', 'audio'),
+        video: path.join(projectPath, 'Promotion', 'video')
       }
     };
     const hasInstance = await fs.access(instancePath).then(() => true).catch(() => false);

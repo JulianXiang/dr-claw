@@ -172,19 +172,23 @@ Compose these into a `dataset_description` string and pass it to `inno-prepare-r
 
 #### Path layout
 
-The pipeline outputs are organized into three semantic top-level folders. **Vibe Lab creates these preset directories on project creation**: Ideation/ideas, Ideation/references, Experiment/code_references, datasets, core_code, analysis, Publication/paper, Publication/homepage, Publication/slide. The orchestrator only needs to create `logs/` subdirs when writing caches. Paths in `instance.json` are **absolute** when created by Vibe Lab; use as-is, or resolve with `path.join(project_path, value)` if relative.
+The pipeline outputs are organized into five semantic top-level folders. **Vibe Lab creates these preset directories on project creation**: Survey/references, Survey/reports, Ideation/ideas, Ideation/references, Experiment/code_references, Experiment/datasets, Experiment/core_code, Experiment/analysis, Publication/paper, Promotion/homepage, Promotion/slides, Promotion/audio, Promotion/video. The orchestrator only needs to create `logs/` subdirs when writing caches. Paths in `instance.json` are **absolute** when created by Vibe Lab; use as-is, or resolve with `path.join(project_path, value)` if relative.
 
 ```
 project_path              = <current VibeLab project path>
+Survey.references         = <project_path>/Survey/references
+Survey.reports            = <project_path>/Survey/reports
 Ideation.references       = <project_path>/Ideation/references
 Ideation.ideas            = <project_path>/Ideation/ideas
 Experiment.code_references= <project_path>/Experiment/code_references
 Experiment.datasets       = <project_path>/Experiment/datasets
 Experiment.core_code      = <project_path>/Experiment/core_code
-Experiment.analysis        = <project_path>/Experiment/analysis
+Experiment.analysis       = <project_path>/Experiment/analysis
 Publication.paper         = <project_path>/Publication/paper
-Publication.homepage      = <project_path>/Publication/homepage
-Publication.slide         = <project_path>/Publication/slide
+Promotion.homepage        = <project_path>/Promotion/homepage
+Promotion.slides          = <project_path>/Promotion/slides
+Promotion.audio           = <project_path>/Promotion/audio
+Promotion.video           = <project_path>/Promotion/video
 ```
 
 If the user has an existing workspace directory, use it. Otherwise, create any missing directories. **Vibe Lab–created projects already have** instance.json and the preset dirs below; create only `logs/` subdirs when writing caches.
@@ -192,6 +196,10 @@ If the user has an existing workspace directory, use it. Otherwise, create any m
 ```
 <project_path>/
 ├── instance.json                          ← project root (Research Lab UI; paths absolute in Vibe Lab)
+├── Survey/
+│   ├── references/
+│   │   └── logs/                          ← survey/discovery caches
+│   └── reports/
 ├── Ideation/
 │   ├── references/
 │   │   ├── papers/                        ← arXiv downloaded papers
@@ -208,10 +216,13 @@ If the user has an existing workspace directory, use it. Otherwise, create any m
 │   │                                         judge_agent*.json
 │   └── analysis/
 │       └── logs/                          ← experiment_analysis_agent*.json
-└── Publication/
-    ├── paper/
+├── Publication/
+│   └── paper/
+└── Promotion/
     ├── homepage/
-    └── slide/
+    ├── slides/
+    ├── audio/
+    └── video/
 ```
 
 Create any missing directories and `logs/` subdirectories when writing caches.
@@ -229,6 +240,10 @@ The **Research Lab** UI reads **`instance.json`** from the project root. When **
   "created_at": "<ISO date>",
   "instance": "<project_path>/instance.json",
   "category": "<inferred category>",
+  "Survey": {
+    "references": "<project_path>/Survey/references",
+    "reports": "<project_path>/Survey/reports"
+  },
   "Ideation": {
     "ideas": "<project_path>/Ideation/ideas",
     "references": "<project_path>/Ideation/references"
@@ -240,9 +255,13 @@ The **Research Lab** UI reads **`instance.json`** from the project root. When **
     "analysis": "<project_path>/Experiment/analysis"
   },
   "Publication": {
-    "paper": "<project_path>/Publication/paper",
-    "homepage": "<project_path>/Publication/homepage",
-    "slide": "<project_path>/Publication/slide"
+    "paper": "<project_path>/Publication/paper"
+  },
+  "Promotion": {
+    "homepage": "<project_path>/Promotion/homepage",
+    "slides": "<project_path>/Promotion/slides",
+    "audio": "<project_path>/Promotion/audio",
+    "video": "<project_path>/Promotion/video"
   }
 }
 ```

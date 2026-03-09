@@ -35,6 +35,13 @@
       { "key": "figures_tables_plan", "label": "Figures/Tables Plan", "path": "sections.publication.figures_tables_plan", "placeholder": "Leaderboards, data cards, comparisons" },
       { "key": "artifact_plan", "label": "Artifact Plan", "path": "sections.publication.artifact_plan", "placeholder": "README, license, release assets" },
       { "key": "submission_checklist", "label": "Submission Checklist", "path": "sections.publication.submission_checklist", "type": "array", "placeholder": "One item per line" }
+    ],
+    "promotion": [
+      { "key": "slide_outline", "label": "Slide Outline", "path": "sections.promotion.slide_outline", "placeholder": "Dataset pitch or talk outline" },
+      { "key": "deck_style", "label": "Deck Style", "path": "sections.promotion.deck_style", "placeholder": "Visual treatment for examples, tables, and benchmarks" },
+      { "key": "homepage_plan", "label": "Homepage Plan", "path": "sections.promotion.homepage_plan", "placeholder": "Dataset page structure, downloads, leaderboards, and examples" },
+      { "key": "tts_config", "label": "TTS Config", "path": "sections.promotion.tts_config", "placeholder": "Voice and narration settings for demo assets" },
+      { "key": "video_assembly_plan", "label": "Video Assembly Plan", "path": "sections.promotion.video_assembly_plan", "placeholder": "How to combine slides, audio, demos, and walkthrough clips" }
     ]
   },
   "pipeline": {
@@ -175,6 +182,47 @@
         "recommended_skills": [
           "inno-paper-writing",
           "inno-reference-audit"
+        ]
+      },
+      "promotion": {
+        "required_elements": [
+          "sections.promotion.slide_outline"
+        ],
+        "optional_elements": [
+          "sections.promotion.deck_style",
+          "sections.promotion.tts_config",
+          "sections.promotion.video_assembly_plan",
+          "sections.promotion.homepage_plan"
+        ],
+        "quality_gate": [
+          "Slides and homepage highlight dataset value, access path, and benchmark evidence",
+          "Delivery plan covers downloads, walkthrough assets, and public-facing explanations"
+        ],
+        "task_blueprints": [
+          {
+            "id": "dataset_promotion_overview_story",
+            "title": "Create dataset overview story for slides and homepage",
+            "description": "Package the dataset motivation, coverage, and benchmark value into a public-facing narrative.",
+            "taskType": "scripting",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "dataset_promotion_assets",
+            "title": "Generate showcase visuals and supporting media assets",
+            "description": "Prepare examples, summary figures, and homepage visuals for dataset promotion.",
+            "taskType": "rendering",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "dataset_promotion_delivery_bundle",
+            "title": "Assemble narration, slide, and homepage delivery bundle",
+            "description": "Produce narration guidance and package assets for talks, demos, and dataset release communication.",
+            "taskType": "delivery",
+            "recommended_skills": ["making-academic-presentations"]
+          }
+        ],
+        "recommended_skills": [
+          "making-academic-presentations"
         ]
       }
     }

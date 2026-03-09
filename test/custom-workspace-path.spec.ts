@@ -108,6 +108,60 @@ test.describe('Workspace Path Customization', () => {
     fs.rmSync(validPath, { recursive: true, force: true });
   });
 
+  test('new project initializes Promotion directories and canonical instance.json paths', async ({ request }) => {
+    const token = await getAuthToken(request);
+    const projectPath = path.join(os.homedir(), 'vibelab', `pw-promotion-${Date.now()}`);
+    const fs = await import('fs/promises');
+
+    try {
+      const response = await request.post('/api/projects/create-workspace', {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { workspaceType: 'new', path: projectPath },
+      });
+
+      const body = await response.json();
+      expect(response.ok()).toBe(true);
+      expect(body.success).toBe(true);
+
+      const expectedDirs = [
+        'Survey/references',
+        'Survey/reports',
+        'Ideation/ideas',
+        'Ideation/references',
+        'Experiment/code_references',
+        'Experiment/datasets',
+        'Experiment/core_code',
+        'Experiment/analysis',
+        'Publication/paper',
+        'Promotion/homepage',
+        'Promotion/slides',
+        'Promotion/audio',
+        'Promotion/video',
+      ];
+
+      for (const relPath of expectedDirs) {
+        await fs.access(path.join(projectPath, relPath));
+      }
+
+      const instanceRaw = await fs.readFile(path.join(projectPath, 'instance.json'), 'utf8');
+      const instance = JSON.parse(instanceRaw);
+
+      expect(instance.Publication).toEqual({
+        paper: path.join(projectPath, 'Publication', 'paper'),
+      });
+      expect(instance.Promotion).toEqual({
+        homepage: path.join(projectPath, 'Promotion', 'homepage'),
+        slides: path.join(projectPath, 'Promotion', 'slides'),
+        audio: path.join(projectPath, 'Promotion', 'audio'),
+        video: path.join(projectPath, 'Promotion', 'video'),
+      });
+      expect(instance.Publication.homepage).toBeUndefined();
+      expect(instance.Publication.slide).toBeUndefined();
+    } finally {
+      await fs.rm(projectPath, { recursive: true, force: true });
+    }
+  });
+
   test('browse-filesystem ~ resolves to actual home directory', async ({ request }) => {
     const token = await getAuthToken(request);
 

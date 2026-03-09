@@ -35,6 +35,13 @@
       { "key": "figures_tables_plan", "label": "Figures/Tables Plan", "path": "sections.publication.figures_tables_plan", "placeholder": "Taxonomy/checklist/evidence tables" },
       { "key": "artifact_plan", "label": "Artifact Plan", "path": "sections.publication.artifact_plan", "placeholder": "Appendix and reproducibility artifacts" },
       { "key": "submission_checklist", "label": "Submission Checklist", "path": "sections.publication.submission_checklist", "type": "array", "placeholder": "One item per line" }
+    ],
+    "promotion": [
+      { "key": "slide_outline", "label": "Slide Outline", "path": "sections.promotion.slide_outline", "placeholder": "Talk track or slide-by-slide outline" },
+      { "key": "deck_style", "label": "Deck Style", "path": "sections.promotion.deck_style", "placeholder": "Visual tone, pace, and audience framing" },
+      { "key": "homepage_plan", "label": "Homepage Plan", "path": "sections.promotion.homepage_plan", "placeholder": "Landing page structure, visuals, and references" },
+      { "key": "tts_config", "label": "TTS Config", "path": "sections.promotion.tts_config", "placeholder": "Voice, pacing, and narration constraints" },
+      { "key": "video_assembly_plan", "label": "Video Assembly Plan", "path": "sections.promotion.video_assembly_plan", "placeholder": "How to combine slides, narration, and optional demo footage" }
     ]
   },
   "pipeline": {
@@ -175,6 +182,47 @@
         "recommended_skills": [
           "inno-paper-writing",
           "inno-reference-audit"
+        ]
+      },
+      "promotion": {
+        "required_elements": [
+          "sections.promotion.slide_outline"
+        ],
+        "optional_elements": [
+          "sections.promotion.deck_style",
+          "sections.promotion.tts_config",
+          "sections.promotion.video_assembly_plan",
+          "sections.promotion.homepage_plan"
+        ],
+        "quality_gate": [
+          "Deck and homepage communicate the thesis clearly to the target audience",
+          "Narration and delivery plan are specific enough to produce final assets"
+        ],
+        "task_blueprints": [
+          {
+            "id": "position_promotion_storyboard",
+            "title": "Storyboard the talk and homepage narrative",
+            "description": "Translate the position argument into a concise slide sequence, talk track, and homepage summary.",
+            "taskType": "scripting",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "position_promotion_visual_packaging",
+            "title": "Package visual assets for slides and homepage",
+            "description": "Prepare diagrams, highlight boxes, and supporting visuals for public-facing communication.",
+            "taskType": "rendering",
+            "recommended_skills": ["making-academic-presentations"]
+          },
+          {
+            "id": "position_promotion_delivery_outputs",
+            "title": "Generate narration and assemble promotion outputs",
+            "description": "Produce TTS or narration guidance and assemble shareable slide, homepage, and video deliverables.",
+            "taskType": "delivery",
+            "recommended_skills": ["making-academic-presentations"]
+          }
+        ],
+        "recommended_skills": [
+          "making-academic-presentations"
         ]
       }
     }
