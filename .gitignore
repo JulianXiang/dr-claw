@@ -144,3 +144,7 @@ backup/
 
 # Server runtime data
 server/data/
+
+# Search result files
+xhs_results.json
+*_results.json

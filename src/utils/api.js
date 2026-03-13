@@ -298,6 +298,10 @@ export const api = {
     search: (source = 'arxiv') =>
       authenticatedFetch(`/api/news/search/${source}`, { method: 'POST' }),
     getResults: (source = 'arxiv') => authenticatedFetch(`/api/news/results/${source}`),
+    /** Poll search progress logs for a source. */
+    getLogs: (source) => authenticatedFetch(`/api/news/logs/${source}`),
+    /** Trigger xhs login (returns JSON with success, nickname, logs). */
+    xhsLogin: () => authenticatedFetch('/api/news/xhs-login', { method: 'POST' }),
   },
 
   // Generic GET method for any endpoint

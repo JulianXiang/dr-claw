@@ -40,6 +40,7 @@ export function useNewsDashboardData() {
   const [isSearching, setIsSearching] = useState<Record<NewsSourceKey, boolean>>({} as Record<NewsSourceKey, boolean>);
   const [errors, setErrors] = useState<Record<NewsSourceKey, string | null>>({} as Record<NewsSourceKey, string | null>);
   const [configDirty, setConfigDirty] = useState<Record<NewsSourceKey, boolean>>({} as Record<NewsSourceKey, boolean>);
+  const [searchLogs, setSearchLogs] = useState<Record<NewsSourceKey, string[]>>({} as Record<NewsSourceKey, string[]>);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch all data on mount
@@ -93,18 +94,32 @@ export function useNewsDashboardData() {
       await Promise.allSettled(
         currentSearching.map(async (key) => {
           try {
-            const res = await api.news.getResults(key);
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data?.top_papers?.length > 0) {
-              setResults((prev) => ({ ...prev, [key]: data }));
+            // Poll intermediate results
+            const resPromise = api.news.getResults(key);
+            // Poll search logs
+            const logPromise = api.news.getLogs(key);
+
+            const [resResult, logResult] = await Promise.allSettled([resPromise, logPromise]);
+
+            if (resResult.status === 'fulfilled' && resResult.value.ok) {
+              const data = await resResult.value.json();
+              if (data?.top_papers?.length > 0) {
+                setResults((prev) => ({ ...prev, [key]: data }));
+              }
+            }
+
+            if (logResult.status === 'fulfilled' && logResult.value.ok) {
+              const logData = await logResult.value.json();
+              if (logData?.logs?.length > 0) {
+                setSearchLogs((prev) => ({ ...prev, [key]: logData.logs }));
+              }
             }
           } catch {
             // ignore polling errors
           }
         })
       );
-    }, 3000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [isSearching]);
@@ -112,6 +127,7 @@ export function useNewsDashboardData() {
   const searchSource = useCallback(async (key: NewsSourceKey) => {
     setIsSearching((prev) => ({ ...prev, [key]: true }));
     setErrors((prev) => ({ ...prev, [key]: null }));
+    setSearchLogs((prev) => ({ ...prev, [key]: [] }));
     try {
       // Save config if dirty
       if (configDirty[key] && configs[key]) {
@@ -121,9 +137,17 @@ export function useNewsDashboardData() {
       const res = await api.news.search(key);
       if (!res.ok) {
         const errData = await res.json();
+        // Show logs from failed search if available
+        if (errData.logs) {
+          setSearchLogs((prev) => ({ ...prev, [key]: errData.logs }));
+        }
         throw new Error(errData.error || 'Search failed');
       }
       const data = await res.json();
+      // Capture logs returned with results
+      if (data.logs) {
+        setSearchLogs((prev) => ({ ...prev, [key]: data.logs }));
+      }
       setResults((prev) => ({ ...prev, [key]: data }));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Search failed';
@@ -157,6 +181,12 @@ export function useNewsDashboardData() {
     setErrors((prev) => ({ ...prev, [key]: null }));
   }, []);
 
+  const clearResults = useCallback((key: NewsSourceKey) => {
+    setResults((prev) => ({ ...prev, [key]: { top_papers: [], total_found: 0, total_filtered: 0 } }));
+    setSearchLogs((prev) => ({ ...prev, [key]: [] }));
+    setErrors((prev) => ({ ...prev, [key]: null }));
+  }, []);
+
   return {
     sources,
     configs,
@@ -164,11 +194,13 @@ export function useNewsDashboardData() {
     isSearching,
     errors,
     configDirty,
+    searchLogs,
     isLoading,
     searchSource,
     searchAll,
     updateConfig,
     saveConfig,
     clearError,
+    clearResults,
   };
 }
