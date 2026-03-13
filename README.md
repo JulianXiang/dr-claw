@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/drclaw.jpg" alt="VibeLab" width="96" height="128">
   <h1>Dr. Claw: Your AI Research Assistant</h1>
-  <p><strong>Plan, run, and write research in one workspace.</strong></p>
+  <p><strong>Full-stack research workspace.</strong></p>
 </div>
 
 <p align="center">
