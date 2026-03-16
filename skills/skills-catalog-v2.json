@@ -443,7 +443,7 @@
         "search",
         "huggingface"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Multi-source ML dataset discovery. Search HuggingFace Hub, OpenML, GitHub, and paper cross-references for datasets relevant to a research task. Use when asked to \"find datasets for\", \"search ML datasets\", \"what datasets exist for\", or \"dis...",
       "legacy": {
@@ -1726,7 +1726,7 @@
         "phase",
         "conducts"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Acquires missing code repositories for the selected idea (Phase A) and conducts comprehensive code survey mapping academic concepts to implementations (Phase B). Outputs acquired_code_repos, updated_prepare_res, and model_survey for downst...",
       "legacy": {
@@ -1769,7 +1769,7 @@
         "information",
         "from"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Comprehensive research assistant that synthesizes information from multiple sources with citations. Use when: conducting in-depth research, gathering sources, writing research summaries, analyzing topics from multiple perspectives, or when...",
       "legacy": {
@@ -1814,7 +1814,7 @@
         "should",
         "be"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "This skill should be used when the user asks to \"analyze experimental results\", \"generate results section\", \"statistical analysis of experiments\", \"compare model performance\", \"create results visualization\", or mentions connecting experime...",
       "legacy": {
@@ -1857,7 +1857,7 @@
         "project",
         "code"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Creates implementation plan, writes project code with judge feedback loop, and submits final experiment run. Use after code-survey in both Idea and Plan branches.",
       "legacy": {
@@ -1900,7 +1900,7 @@
         "banana",
         "pro"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Generate/edit images with Nano Banana Pro (Gemini 3 Pro Image). Use for image create/modify requests incl. edits. Supports text-to-image + image-to-image; 1K/2K/4K; use --input-image.",
       "legacy": {
@@ -1943,7 +1943,7 @@
         "from",
         "text"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Remove signs of AI-generated writing from text. Use when editing or reviewing text to make it sound more natural and human-written. Based on Wikipedia's comprehensive \"Signs of AI writing\" guide. Detects and fixes patterns including: infla...",
       "legacy": {
@@ -1987,7 +1987,7 @@
         "gate",
         "evaluates"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Multi-persona idea evaluation with quality gate. Evaluates ideas across 5 InnoEval dimensions (Clarity, Novelty, Validity, Feasibility, Significance) using 3 reviewer personas and a meta-review. Sits between inno-idea-generation and inno-c...",
       "legacy": {
@@ -2031,7 +2031,7 @@
         "conducts",
         "comprehensive"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Facilitates structured brainstorming sessions, conducts comprehensive research, and generates creative solutions using proven frameworks. Trigger keywords - brainstorm, ideate, research, SCAMPER, SWOT, mind map, creative, explore ideas, ma...",
       "legacy": {
@@ -2075,7 +2075,7 @@
         "checklist",
         "based"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Structured manuscript/grant review with checklist-based evaluation. Use when writing formal peer reviews with specific criteria methodology assessment, statistical validity, reporting standards compliance (CONSORT/STROBE), and constructive...",
       "legacy": {
@@ -2119,7 +2119,7 @@
         "papers",
         "following"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Creates formal academic research papers following IEEE/ACM formatting standards with proper structure, citations, and scholarly writing style. Use when the user asks to write a research paper, academic paper, or conference paper on any top...",
       "legacy": {
@@ -2209,7 +2209,7 @@
         "searches",
         "github"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Loads the evaluation instance, searches GitHub for related repositories, builds a dataset description, queries the Prepare Agent for reference codebases, and downloads arXiv paper sources. Covers both Idea mode and Plan mode (the only diff...",
       "legacy": {
@@ -2254,7 +2254,7 @@
         "cli",
         "reading"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Access Overleaf projects via CLI. Use for reading/writing LaTeX files, syncing local .tex files to Overleaf, downloading projects, and managing Overleaf project structure. Triggers on Overleaf, LaTeX sync, or tex file uploads to Overleaf.",
       "legacy": {
@@ -2299,7 +2299,7 @@
         "this",
         "provides"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "This skill provides reference guidance for citation verification in academic writing. Use when the user asks about \"citation verification best practices\", \"how to verify references\", \"preventing fake citations\", or needs guidance on citati...",
       "legacy": {
@@ -2344,7 +2344,7 @@
         "user",
         "input"
       ],
-      "source": "vibelab",
+      "source": "dr-claw",
       "status": "verified",
       "summary": "Receives free-form user input about a research task, judges its maturity (plan vs idea), and constructs the standardized inputs needed by inno-prepare-resources. Use when the user wants to start a research pipeline — regardless of how comp...",
       "legacy": {

@@ -431,9 +431,8 @@ app.use('/api/agent', agentRoutes);
 
 const expandWorkspacePath = async (inputPath) => {
     if (!inputPath) return inputPath;
-    const root = await getWorkspacesRoot();
     if (inputPath === '~') {
-        return root;
+        return os.homedir();
     }
     if (inputPath.startsWith('~/') || inputPath.startsWith('~\\')) {
         return path.join(os.homedir(), inputPath.slice(2));

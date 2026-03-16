@@ -1,9 +1,11 @@
 import express from 'express';
 import { promises as fs } from 'fs';
+import fsSync from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import os from 'os';
 import { addProjectManually, getWorkspaceRootFromConfig, setWorkspaceRootInConfig } from '../projects.js';
+import { IS_PLATFORM } from '../constants/config.js';
 
 const router = express.Router();
 
@@ -14,6 +16,7 @@ function sanitizeGitError(message, token) {
 
 // Default workspace root: ~/dr-claw
 const DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'dr-claw');
+const LEGACY_DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'vibelab');
 
 // Dynamic workspace root: config file > env var > ~/dr-claw
 export async function getWorkspacesRoot() {
@@ -22,7 +25,8 @@ export async function getWorkspacesRoot() {
 }
 
 // Keep a synchronous fallback for backward compat (used only at import time)
-export const WORKSPACES_ROOT = process.env.WORKSPACES_ROOT || DEFAULT_WORKSPACES_ROOT;
+export const WORKSPACES_ROOT =
+  process.env.WORKSPACES_ROOT || (fsSync.existsSync(DEFAULT_WORKSPACES_ROOT) ? DEFAULT_WORKSPACES_ROOT : LEGACY_DEFAULT_WORKSPACES_ROOT);
 
 // System-critical paths that should never be used as workspace directories
 export const FORBIDDEN_PATHS = [
@@ -119,16 +123,24 @@ export async function validateWorkspacePath(requestedPath) {
       }
     }
 
-    // Resolve the workspace root to its real path
+    // In OSS mode, custom paths under the user's home directory remain valid even if
+    // the default suggested storage root is narrower (for example ~/dr-claw).
     const currentWorkspacesRoot = await getWorkspacesRoot();
     const resolvedWorkspaceRoot = await fs.realpath(currentWorkspacesRoot);
+    const resolvedUserHome = await fs.realpath(os.homedir());
+    const allowedRoots = IS_PLATFORM ? [resolvedWorkspaceRoot] : [resolvedWorkspaceRoot, resolvedUserHome];
+
+    const isWithinAllowedRoot = allowedRoots.some((allowedRoot) => (
+      realPath.startsWith(allowedRoot + path.sep) || realPath === allowedRoot
+    ));
 
     // Ensure the resolved path is contained within the allowed workspace root
-    if (!realPath.startsWith(resolvedWorkspaceRoot + path.sep) &&
-        realPath !== resolvedWorkspaceRoot) {
+    if (!isWithinAllowedRoot) {
       return {
         valid: false,
-        error: `Workspace path must be within the allowed workspace root: ${currentWorkspacesRoot}`
+        error: IS_PLATFORM
+          ? `Workspace path must be within the allowed workspace root: ${currentWorkspacesRoot}`
+          : `Workspace path must be within your home directory or the configured workspace root: ${currentWorkspacesRoot}`
       };
     }
 
@@ -143,8 +155,11 @@ export async function validateWorkspacePath(requestedPath) {
         const resolvedTarget = path.resolve(path.dirname(absolutePath), linkTarget);
         const realTarget = await fs.realpath(resolvedTarget);
 
-        if (!realTarget.startsWith(resolvedWorkspaceRoot + path.sep) &&
-            realTarget !== resolvedWorkspaceRoot) {
+        const symlinkWithinAllowedRoot = allowedRoots.some((allowedRoot) => (
+          realTarget.startsWith(allowedRoot + path.sep) || realTarget === allowedRoot
+        ));
+
+        if (!symlinkWithinAllowedRoot) {
           return {
             valid: false,
             error: 'Symlink target is outside the allowed workspace root'

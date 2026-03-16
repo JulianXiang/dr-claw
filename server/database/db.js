@@ -452,6 +452,7 @@ const projectDb = {
         VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           display_name = COALESCE(excluded.display_name, projects.display_name),
+          path = COALESCE(excluded.path, projects.path),
           user_id = CASE WHEN projects.user_id IS NULL THEN excluded.user_id ELSE projects.user_id END,
           is_starred = COALESCE(excluded.is_starred, projects.is_starred),
           last_accessed = COALESCE(excluded.last_accessed, projects.last_accessed),
@@ -514,6 +515,28 @@ const projectDb = {
       db.prepare('DELETE FROM projects WHERE id = ?').run(id);
     } catch (err) {
       console.error('Error deleting project metadata:', err.message);
+    }
+  },
+
+  updateProjectPath: (id, projectPath) => {
+    try {
+      db.prepare('UPDATE projects SET path = ? WHERE id = ?').run(projectPath, id);
+    } catch (err) {
+      console.error('Error updating project path:', err.message);
+    }
+  },
+
+  migrateProjectIdentity: (oldId, newId, projectPath) => {
+    const migrate = db.transaction(() => {
+      db.prepare('UPDATE projects SET id = ?, path = ? WHERE id = ?').run(newId, projectPath, oldId);
+      db.prepare('UPDATE session_metadata SET project_name = ? WHERE project_name = ?').run(newId, oldId);
+    });
+
+    try {
+      migrate();
+    } catch (err) {
+      console.error('Error migrating project identity:', err.message);
+      throw err;
     }
   }
 };

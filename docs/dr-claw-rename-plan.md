@@ -10,6 +10,7 @@ Rename the project from `VibeLab` / `Vibe Lab` to `Dr. Claw` without breaking pa
 - User-facing branding status: completed
 - Package/CLI/workspace-root migration status: completed
 - Compatibility and persisted-data migration status: in progress
+- Legacy workspace/project transfer status: implemented, pending final user verification
 - Last updated: `2026-03-15`
 
 ## Current State Review
@@ -223,6 +224,15 @@ Verification completed for the package/CLI/workspace-root migration:
 - legacy CLI alias `vibelab` now points to the same executable as `dr-claw`
 - legacy sidebar width and survey diagram localStorage entries are read and migrated to the new keys on use
 - auth database defaults now migrate from `~/.vibelab/auth.db` to `~/.dr-claw/auth.db` when possible
+
+Compatibility work now implemented for legacy project transfer:
+
+- project discovery keeps both `~/dr-claw` and legacy `~/vibelab` visible during the default-root transition
+- eligible legacy project folders are moved from `~/vibelab/...` to `~/dr-claw/...` automatically when the target path is free
+- Claude project-config entries are rewritten from legacy encoded IDs/paths to the new `dr-claw` equivalents
+- database project rows and session metadata project references are migrated to the new project IDs
+- Cursor, Gemini, and Codex session discovery accepts both current and legacy project paths during the transition
+- legacy projects remain discoverable even if an automatic move cannot be completed
 
 ## Suggested First PR
 

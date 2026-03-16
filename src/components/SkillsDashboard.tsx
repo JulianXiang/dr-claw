@@ -273,6 +273,10 @@ const NON_SKILL_DIRECTORY_NAMES = new Set([
 const FACET_PREFIX_PATTERN = /^(Domain|Stage|Category|Source|领域|阶段|类别|来源|영역|단계|카테고리):\s*/i;
 const SOURCE_PLATFORM_PATTERN = /^(来源: 平台自研|Source: Dr\. Claw)$/i;
 
+function normalizeSourceKey(value: string) {
+  return value === 'vibelab' ? 'dr-claw' : value;
+}
+
 const UI_TEXT: Record<LocaleKey, Record<string, string>> = {
   zh: {
     loading: '加载技能中...',
@@ -633,8 +637,8 @@ function parseSkillCatalogV2(payload: unknown, localeKey: LocaleKey, text: Recor
       })),
       keywords: Array.isArray(record.keywords) ? record.keywords.map((value) => compactText(String(value))).filter(Boolean) : [],
       source: {
-        key: record.source,
-        label: record.source === 'vibelab' ? text.sourcePlatformShort : text.sourceImportedShort,
+        key: normalizeSourceKey(record.source),
+        label: (record.source === 'vibelab' || record.source === 'dr-claw') ? text.sourcePlatformShort : text.sourceImportedShort,
       },
       status: {
         key: record.status,
@@ -1091,14 +1095,14 @@ function buildExplorerSkills(
     const collectionLabel = stripFacetPrefix(primaryStageTag?.label ?? topLevelGroup.label);
     const primaryDomainLabel = stripFacetPrefix(primaryDomainTag?.label ?? options.defaultDomainLabel);
     const taxonomy = skill.taxonomy;
-    const fallbackSourceKey = fallbackTags.some((tag) => isSourcePlatformTag(tag.label)) ? 'vibelab' : 'imported';
+    const fallbackSourceKey = fallbackTags.some((tag) => isSourcePlatformTag(tag.label)) ? 'dr-claw' : 'imported';
     const fallbackDomainKey = primaryDomainTag ? `domain:${normalizeSkillKey(primaryDomainLabel)}` : 'domain:general';
     const fallbackCapabilities = topLevelGroup.key === 'standalone'
       ? []
       : [{ key: `legacy:${topLevelGroup.key}`, label: topLevelGroup.label }];
     const intentLabel = taxonomy?.primaryIntent.label ?? collectionLabel;
-    const sourceLabel = taxonomy?.source.label ?? (fallbackSourceKey === 'vibelab' ? options.sourcePlatformShort : options.sourceImportedShort);
-    const statusKey = taxonomy?.status.key ?? (fallbackSourceKey === 'vibelab' ? 'verified' : 'candidate');
+    const sourceLabel = taxonomy?.source.label ?? (fallbackSourceKey === 'dr-claw' ? options.sourcePlatformShort : options.sourceImportedShort);
+    const statusKey = taxonomy?.status.key ?? (fallbackSourceKey === 'dr-claw' ? 'verified' : 'candidate');
     const statusLabel = taxonomy?.status.label ?? humanizeSlug(statusKey);
     const domains = taxonomy?.domains ?? [{ key: fallbackDomainKey, label: primaryDomainLabel }];
     const capabilities = taxonomy?.capabilities ?? fallbackCapabilities;
@@ -1305,7 +1309,7 @@ export default function SkillsDashboard() {
   const [activeIntent, setActiveIntent] = useState('all');
   const [activeCapability, setActiveCapability] = useState('all');
   const [activeDomain, setActiveDomain] = useState('all');
-  const [activeSource, setActiveSource] = useState<'all' | 'vibelab' | 'imported'>('all');
+  const [activeSource, setActiveSource] = useState<'all' | 'dr-claw' | 'imported'>('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [focusedSkill, setFocusedSkill] = useState<SkillExplorerItem | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1742,7 +1746,7 @@ export default function SkillsDashboard() {
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
 
-    if (activeSource === 'vibelab') {
+    if (activeSource === 'dr-claw') {
       labels.push(`${text.sourceField}: ${text.sourcePlatformShort}`);
     }
     if (activeSource === 'imported') {
@@ -2008,10 +2012,10 @@ export default function SkillsDashboard() {
                     {
                       key: 'native',
                       label: text.nativeSkills,
-                      count: searchFilteredSkills.filter((skill) => skill.sourceKey === 'vibelab').length,
-                      active: activeSource === 'vibelab' && activeIntent === 'all' && activeCapability === 'all' && activeDomain === 'all' && activeStatus === 'all',
+                      count: searchFilteredSkills.filter((skill) => skill.sourceKey === 'dr-claw' || skill.sourceKey === 'vibelab').length,
+                      active: activeSource === 'dr-claw' && activeIntent === 'all' && activeCapability === 'all' && activeDomain === 'all' && activeStatus === 'all',
                       onClick: () => {
-                        setActiveSource('vibelab');
+                        setActiveSource('dr-claw');
                         setActiveIntent('all');
                         setActiveCapability('all');
                         setActiveDomain('all');

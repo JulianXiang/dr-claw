@@ -345,7 +345,7 @@ function buildLegacyTags(skillName, summary, frontmatter, mapping) {
   }
 
   if (isPlatformNative) {
-    metaTags.push('Source: VibeLab');
+    metaTags.push('Source: Dr. Claw');
   }
 
   return {
@@ -507,11 +507,12 @@ function inferDomains(skill, override) {
 }
 
 function inferSource(skill) {
-  return normalizeKey(skill.source) === 'vibelab' ? 'vibelab' : 'imported';
+  const normalizedSource = normalizeKey(skill.source);
+  return normalizedSource === 'vibelab' || normalizedSource === 'dr-claw' ? 'dr-claw' : 'imported';
 }
 
 function inferStatus(skill, source) {
-  if (source === 'vibelab') {
+  if (source === 'vibelab' || source === 'dr-claw') {
     return 'verified';
   }
 
@@ -669,7 +670,7 @@ async function main() {
         key: `domain:${normalizeKey(domainLabel)}`,
         label: domainLabel,
       },
-      source: isPlatformNative ? 'VibeLab' : 'Imported',
+      source: isPlatformNative ? 'Dr. Claw' : 'Imported',
       summary,
       fullDescription,
       tags: {

@@ -20,7 +20,7 @@ Create when missing:
 ```json
 {
   "version": "1.0",
-  "provider": "vibelab-web",
+  "provider": "dr-claw-web",
   "initializedAt": "<ISO timestamp>"
 }
 ```

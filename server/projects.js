@@ -71,6 +71,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIBELAB_SKILLS_DIR = path.join(__dirname, '..', 'skills');
 const PROJECT_SKILL_FOLDERS = ['.claude', '.agents', '.cursor', '.gemini'];
 const PROJECT_PIPELINE_FOLDERS = ['Survey', 'Ideation', 'Experiment', 'Publication', 'Promotion'];
+const LEGACY_DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'vibelab');
+const CURRENT_DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'dr-claw');
 
 function normalizeTaskStatus(status) {
     const raw = String(status || '').trim().toLowerCase();
@@ -242,6 +244,225 @@ async function loadProjectConfig() {
     // Return empty config if file doesn't exist
     return {};
   }
+}
+
+async function migrateLegacyDefaultWorkspacesRoot(targetRoot = CURRENT_DEFAULT_WORKSPACES_ROOT) {
+  if (targetRoot !== CURRENT_DEFAULT_WORKSPACES_ROOT) {
+    return targetRoot;
+  }
+
+  const legacyExists = fsSync.existsSync(LEGACY_DEFAULT_WORKSPACES_ROOT);
+  const currentExists = fsSync.existsSync(CURRENT_DEFAULT_WORKSPACES_ROOT);
+
+  if (!legacyExists || currentExists) {
+    return targetRoot;
+  }
+
+  try {
+    await fs.rename(LEGACY_DEFAULT_WORKSPACES_ROOT, CURRENT_DEFAULT_WORKSPACES_ROOT);
+    return CURRENT_DEFAULT_WORKSPACES_ROOT;
+  } catch (error) {
+    console.warn('[projects] Failed to migrate legacy default workspace root, using legacy path:', error.message);
+    return LEGACY_DEFAULT_WORKSPACES_ROOT;
+  }
+}
+
+async function resolveConfiguredWorkspacesRoot(configRoot = null) {
+  if (!configRoot) {
+    return migrateLegacyDefaultWorkspacesRoot();
+  }
+
+  if (configRoot === LEGACY_DEFAULT_WORKSPACES_ROOT) {
+    return migrateLegacyDefaultWorkspacesRoot();
+  }
+
+  return configRoot;
+}
+
+async function normalizeWorkspaceRoots(roots) {
+  const normalizedRoots = [];
+
+  for (const root of roots) {
+    if (!root) continue;
+
+    try {
+      const normalizedRoot = await normalizeComparablePath(root);
+      if (!normalizedRoots.includes(normalizedRoot)) {
+        normalizedRoots.push(normalizedRoot);
+      }
+    } catch (error) {
+      console.warn('[projects] Failed to normalize workspace root:', root, error.message);
+    }
+  }
+
+  return normalizedRoots;
+}
+
+async function getVisibleWorkspaceRoots(configRoot = null) {
+  const resolvedRoot = process.env.WORKSPACES_ROOT || await resolveConfiguredWorkspacesRoot(configRoot);
+  const candidateRoots = [resolvedRoot];
+
+  const usesDefaultWorkspaceRoot =
+    !process.env.WORKSPACES_ROOT &&
+    (!configRoot ||
+      configRoot === LEGACY_DEFAULT_WORKSPACES_ROOT ||
+      configRoot === CURRENT_DEFAULT_WORKSPACES_ROOT ||
+      resolvedRoot === LEGACY_DEFAULT_WORKSPACES_ROOT ||
+      resolvedRoot === CURRENT_DEFAULT_WORKSPACES_ROOT);
+
+  if (usesDefaultWorkspaceRoot) {
+    candidateRoots.push(LEGACY_DEFAULT_WORKSPACES_ROOT);
+    candidateRoots.push(CURRENT_DEFAULT_WORKSPACES_ROOT);
+  }
+
+  return normalizeWorkspaceRoots(candidateRoots);
+}
+
+async function isPathWithinWorkspaceRoots(candidatePath, normalizedRoots) {
+  const normalizedPath = await normalizeComparablePath(candidatePath);
+  return normalizedRoots.some((root) => normalizedPath === root || normalizedPath.startsWith(root + path.sep));
+}
+
+function remapLegacyProjectPath(projectPath) {
+  if (!projectPath) return null;
+
+  const normalizedPath = path.resolve(projectPath);
+  if (
+    normalizedPath !== LEGACY_DEFAULT_WORKSPACES_ROOT &&
+    !normalizedPath.startsWith(LEGACY_DEFAULT_WORKSPACES_ROOT + path.sep)
+  ) {
+    return null;
+  }
+
+  return path.join(
+    CURRENT_DEFAULT_WORKSPACES_ROOT,
+    path.relative(LEGACY_DEFAULT_WORKSPACES_ROOT, normalizedPath)
+  );
+}
+
+function remapCurrentProjectPathToLegacy(projectPath) {
+  if (!projectPath) return null;
+
+  const normalizedPath = path.resolve(projectPath);
+  if (
+    normalizedPath !== CURRENT_DEFAULT_WORKSPACES_ROOT &&
+    !normalizedPath.startsWith(CURRENT_DEFAULT_WORKSPACES_ROOT + path.sep)
+  ) {
+    return null;
+  }
+
+  return path.join(
+    LEGACY_DEFAULT_WORKSPACES_ROOT,
+    path.relative(CURRENT_DEFAULT_WORKSPACES_ROOT, normalizedPath)
+  );
+}
+
+async function maybeMigrateLegacyProject(projectName, projectInfo, projectDb) {
+  const legacyPath = projectInfo?.originalPath || projectInfo?.path;
+  const migratedPath = remapLegacyProjectPath(legacyPath);
+
+  if (!legacyPath || !migratedPath || migratedPath === legacyPath) {
+    return null;
+  }
+
+  const legacyProjectId = projectName || encodeProjectPath(legacyPath);
+  const migratedProjectId = encodeProjectPath(migratedPath);
+  const legacyClaudeDir = path.join(os.homedir(), '.claude', 'projects', legacyProjectId);
+  const migratedClaudeDir = path.join(os.homedir(), '.claude', 'projects', migratedProjectId);
+
+  let legacyExists = false;
+  let migratedExists = false;
+
+  try {
+    await fs.access(legacyPath);
+    legacyExists = true;
+  } catch (_) {}
+
+  try {
+    await fs.access(migratedPath);
+    migratedExists = true;
+  } catch (_) {}
+
+  if (legacyExists && !migratedExists) {
+    try {
+      await fs.mkdir(path.dirname(migratedPath), { recursive: true });
+      await fs.rename(legacyPath, migratedPath);
+      migratedExists = true;
+      legacyExists = false;
+    } catch (error) {
+      console.warn('[projects] Failed to move legacy project directory:', legacyPath, '->', migratedPath, error.message);
+      return null;
+    }
+  }
+
+  if (!migratedExists) {
+    return null;
+  }
+
+  try {
+    await fs.access(legacyClaudeDir);
+    try {
+      await fs.access(migratedClaudeDir);
+    } catch (_) {
+      await fs.rename(legacyClaudeDir, migratedClaudeDir);
+    }
+  } catch (_) {}
+
+  if (projectDb && legacyProjectId !== migratedProjectId) {
+    const existingMigratedProject = projectDb.getProjectById(migratedProjectId);
+    if (!existingMigratedProject) {
+      const existingLegacyProject = projectDb.getProjectById(legacyProjectId);
+      if (existingLegacyProject) {
+        projectDb.migrateProjectIdentity(legacyProjectId, migratedProjectId, migratedPath);
+      }
+    }
+  } else if (projectDb) {
+    projectDb.updateProjectPath(migratedProjectId, migratedPath);
+  }
+
+  return {
+    oldId: legacyProjectId,
+    newId: migratedProjectId,
+    oldPath: legacyPath,
+    newPath: migratedPath
+  };
+}
+
+async function migrateLegacyProjects(config, projectDb) {
+  let configDirty = false;
+
+  for (const [projectName, projectInfo] of Object.entries(config)) {
+    if (projectName.startsWith('_') || !projectInfo?.originalPath) {
+      continue;
+    }
+
+    const migration = await maybeMigrateLegacyProject(projectName, projectInfo, projectDb);
+    if (!migration) {
+      continue;
+    }
+
+    const nextProjectInfo = {
+      ...projectInfo,
+      originalPath: migration.newPath
+    };
+
+    if (migration.oldId !== migration.newId) {
+      if (!config[migration.newId]) {
+        config[migration.newId] = nextProjectInfo;
+      }
+      delete config[projectName];
+    } else {
+      config[projectName] = nextProjectInfo;
+    }
+    configDirty = true;
+  }
+
+  if (configDirty) {
+    await saveProjectConfig(config);
+    clearProjectDirectoryCache();
+  }
+
+  return configDirty;
 }
 
 // Save project configuration file
@@ -425,9 +646,11 @@ async function getProjects(userId, progressCallback = null) {
   const projects = [];
   const existingProjects = new Set();
 
-  // Resolve workspace root for filtering (only for NEW discovery or manual adds)
-  const DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'dr-claw');
-  const workspacesRoot = config._workspacesRoot || process.env.WORKSPACES_ROOT || DEFAULT_WORKSPACES_ROOT;
+  await migrateLegacyProjects(config, projectDb);
+
+  // Resolve workspace roots for filtering. During the default-root migration we keep
+  // the legacy root visible so existing users do not lose access mid-upgrade.
+  const visibleWorkspaceRoots = await getVisibleWorkspaceRoots(config._workspacesRoot || null);
   const codexSessionsIndexRef = { sessionsByProject: null };
   let totalProjects = 0;
   let processedProjects = 0;
@@ -464,20 +687,14 @@ async function getProjects(userId, progressCallback = null) {
 
       if (dbEntry) {
         if (dbEntry.user_id === userId) {
-          const normalizedActual = await normalizeComparablePath(actualDir);
-          const normalizedRoot = await normalizeComparablePath(workspacesRoot);
-
-          if (normalizedActual.startsWith(normalizedRoot)) {
+          if (await isPathWithinWorkspaceRoots(actualDir, visibleWorkspaceRoots)) {
             discoveredDirectories.push({ entry, actualProjectDir: actualDir, dbEntry });
           } else {
             console.log(`[projects] Skipping external claimed project: ${entry.name} at ${actualDir}`);
           }
         }
       } else {
-        const normalizedActual = await normalizeComparablePath(actualDir);
-        const normalizedRoot = await normalizeComparablePath(workspacesRoot);
-
-        if (normalizedActual.startsWith(normalizedRoot)) {
+        if (await isPathWithinWorkspaceRoots(actualDir, visibleWorkspaceRoots)) {
           discoveredDirectories.push({ entry, actualProjectDir: actualDir, dbEntry: null });
         } else {
           console.log(`[projects] Skipping external Claude project: ${entry.name} at ${actualDir}`);
@@ -493,10 +710,7 @@ async function getProjects(userId, progressCallback = null) {
       const dbEntry = globalProjectMap.get(projectName);
       if (!dbEntry || !dbEntry.user_id) {
         // Skip projects outside the workspace root
-        const normalizedConfigPath = await normalizeComparablePath(projectConfig.originalPath);
-        const normalizedRoot = await normalizeComparablePath(workspacesRoot);
-
-        if (!normalizedConfigPath.startsWith(normalizedRoot)) {
+        if (!await isPathWithinWorkspaceRoots(projectConfig.originalPath, visibleWorkspaceRoots)) {
           console.log(`[projects] Skipping external Claude config project: ${projectName} at ${projectConfig.originalPath}`);
           continue;
         }
@@ -521,10 +735,7 @@ async function getProjects(userId, progressCallback = null) {
 
       if (isVisible) {
         // Also filter DB projects by workspace root
-        const normalizedDbPath = await normalizeComparablePath(dbEntry.path);
-        const normalizedRoot = await normalizeComparablePath(workspacesRoot);
-
-        if (!normalizedDbPath.startsWith(normalizedRoot)) {
+        if (!await isPathWithinWorkspaceRoots(dbEntry.path, visibleWorkspaceRoots)) {
           console.log(`[projects] Skipping external DB project: ${dbEntry.id} at ${dbEntry.path}`);
           continue;
         }
@@ -1713,55 +1924,59 @@ async function addProjectManually(projectPath, displayName = null, userId = null
 // Fetch Cursor sessions for a given project path
 async function getCursorSessions(projectPath) {
   try {
-    // Calculate cwdID hash for the project path (Cursor uses MD5 hash)
-    const cwdId = crypto.createHash('md5').update(projectPath).digest('hex');
-    const cursorChatsPath = path.join(os.homedir(), '.cursor', 'chats', cwdId);
-
-    // Check if the directory exists
-    try {
-      await fs.access(cursorChatsPath);
-    } catch (error) {
-      // No sessions for this project
-      return [];
+    const candidatePaths = [projectPath];
+    const legacyProjectPath = remapCurrentProjectPathToLegacy(projectPath);
+    if (legacyProjectPath && legacyProjectPath !== projectPath) {
+      candidatePaths.push(legacyProjectPath);
     }
 
-    // List all session directories
-    const sessionDirs = await fs.readdir(cursorChatsPath);
     const sessions = [];
+    const seenSessionIds = new Set();
 
-    for (const sessionId of sessionDirs) {
-      const sessionPath = path.join(cursorChatsPath, sessionId);
-      const storeDbPath = path.join(sessionPath, 'store.db');
+    for (const candidatePath of candidatePaths) {
+      const cwdId = crypto.createHash('md5').update(candidatePath).digest('hex');
+      const cursorChatsPath = path.join(os.homedir(), '.cursor', 'chats', cwdId);
 
       try {
-        // Check if store.db exists
-        await fs.access(storeDbPath);
+        await fs.access(cursorChatsPath);
+      } catch (_) {
+        continue;
+      }
 
-        // Capture store.db mtime as a reliable fallback timestamp
-        let dbStatMtimeMs = null;
+      const sessionDirs = await fs.readdir(cursorChatsPath);
+
+      for (const sessionId of sessionDirs) {
+        if (seenSessionIds.has(sessionId)) {
+          continue;
+        }
+
+        const sessionPath = path.join(cursorChatsPath, sessionId);
+        const storeDbPath = path.join(sessionPath, 'store.db');
+
         try {
-          const stat = await fs.stat(storeDbPath);
-          dbStatMtimeMs = stat.mtimeMs;
-        } catch (_) {}
+          await fs.access(storeDbPath);
 
-        // Open SQLite database
-        const db = await open({
-          filename: storeDbPath,
-          driver: sqlite3.Database,
-          mode: sqlite3.OPEN_READONLY
-        });
+          let dbStatMtimeMs = null;
+          try {
+            const stat = await fs.stat(storeDbPath);
+            dbStatMtimeMs = stat.mtimeMs;
+          } catch (_) {}
 
-        // Get metadata from meta table
-        const metaRows = await db.all(`
-          SELECT key, value FROM meta
-        `);
+          const db = await open({
+            filename: storeDbPath,
+            driver: sqlite3.Database,
+            mode: sqlite3.OPEN_READONLY
+          });
 
-        // Parse metadata
-        let metadata = {};
-        for (const row of metaRows) {
-          if (row.value) {
+          const metaRows = await db.all(`
+            SELECT key, value FROM meta
+          `);
+
+          const metadata = {};
+          for (const row of metaRows) {
+            if (!row.value) continue;
+
             try {
-              // Try to decode as hex-encoded JSON
               const hexMatch = row.value.toString().match(/^[0-9a-fA-F]+$/);
               if (hexMatch) {
                 const jsonStr = Buffer.from(row.value, 'hex').toString('utf8');
@@ -1769,52 +1984,44 @@ async function getCursorSessions(projectPath) {
               } else {
                 metadata[row.key] = row.value.toString();
               }
-            } catch (e) {
+            } catch (_) {
               metadata[row.key] = row.value.toString();
             }
           }
+
+          const messageCountResult = await db.get(`
+            SELECT COUNT(*) as count FROM blobs
+          `);
+
+          await db.close();
+
+          const sessionName = metadata.title || metadata.sessionTitle || 'Untitled Session';
+          let createdAt = null;
+          if (metadata.createdAt) {
+            createdAt = new Date(metadata.createdAt).toISOString();
+          } else if (dbStatMtimeMs) {
+            createdAt = new Date(dbStatMtimeMs).toISOString();
+          } else {
+            createdAt = new Date().toISOString();
+          }
+
+          sessions.push({
+            id: sessionId,
+            name: sessionName,
+            createdAt,
+            lastActivity: createdAt,
+            messageCount: messageCountResult.count || 0,
+            projectPath
+          });
+          seenSessionIds.add(sessionId);
+        } catch (error) {
+          console.warn(`Could not read Cursor session ${sessionId}:`, error.message);
         }
-
-        // Get message count
-        const messageCountResult = await db.get(`
-          SELECT COUNT(*) as count FROM blobs
-        `);
-
-        await db.close();
-
-        // Extract session info
-        const sessionName = metadata.title || metadata.sessionTitle || 'Untitled Session';
-
-        // Determine timestamp - prefer createdAt from metadata, fall back to db file mtime
-        let createdAt = null;
-        if (metadata.createdAt) {
-          createdAt = new Date(metadata.createdAt).toISOString();
-        } else if (dbStatMtimeMs) {
-          createdAt = new Date(dbStatMtimeMs).toISOString();
-        } else {
-          createdAt = new Date().toISOString();
-        }
-
-        sessions.push({
-          id: sessionId,
-          name: sessionName,
-          createdAt: createdAt,
-          lastActivity: createdAt, // For compatibility with Claude sessions
-          messageCount: messageCountResult.count || 0,
-          projectPath: projectPath
-        });
-
-      } catch (error) {
-        console.warn(`Could not read Cursor session ${sessionId}:`, error.message);
       }
     }
 
-    // Sort sessions by creation time (newest first)
     sessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    // Return only the first 5 sessions for performance
     return sessions.slice(0, 5);
-
   } catch (error) {
     console.error('Error fetching Cursor sessions:', error);
     return [];
@@ -1831,8 +2038,12 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
   try {
     const { sessionDb } = await import('./database/db.js');
     const normalizedProjectPath = await normalizeComparablePath(projectPath);
+    const normalizedLegacyProjectPath = await normalizeComparablePath(remapCurrentProjectPathToLegacy(projectPath));
     const geminiSessionsDir = path.join(os.homedir(), '.gemini', 'sessions');
     const projectName = encodeProjectPath(projectPath);
+    const legacyProjectName = remapCurrentProjectPathToLegacy(projectPath)
+      ? encodeProjectPath(remapCurrentProjectPathToLegacy(projectPath))
+      : null;
 
     try {
       await fs.access(geminiSessionsDir);
@@ -1844,7 +2055,12 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
     const sessions = [];
 
     // Fetch indexed sessions from database for quick lookup
-    const dbSessions = sessionDb.getSessionsByProject(projectName);
+    const dbSessions = [
+      ...sessionDb.getSessionsByProject(projectName),
+      ...(legacyProjectName && legacyProjectName !== projectName
+        ? sessionDb.getSessionsByProject(legacyProjectName)
+        : [])
+    ];
     const dbSessionMap = new Map(dbSessions.map(s => [s.id, s]));
 
     for (const file of files) {
@@ -1890,7 +2106,10 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
                   const sessionCwd = entry.cwd || entry.payload?.cwd;
                   if (sessionCwd) {
                     const normalizedSessionCwd = await normalizeComparablePath(sessionCwd);
-                    if (normalizedSessionCwd === normalizedProjectPath) {
+                    if (
+                      normalizedSessionCwd === normalizedProjectPath ||
+                      (normalizedLegacyProjectPath && normalizedSessionCwd === normalizedLegacyProjectPath)
+                    ) {
                       foundMatchingCwd = true;
                     }
                   }
@@ -2059,6 +2278,7 @@ async function getCodexSessions(projectPath, options = {}) {
   const { limit = 5, indexRef = null } = options;
   try {
     const normalizedProjectPath = await normalizeComparablePath(projectPath);
+    const normalizedLegacyProjectPath = await normalizeComparablePath(remapCurrentProjectPathToLegacy(projectPath));
     if (!normalizedProjectPath) {
       return [];
     }
@@ -2068,10 +2288,15 @@ async function getCodexSessions(projectPath, options = {}) {
     }
 
     const sessionsByProject = indexRef?.sessionsByProject || await buildCodexSessionsIndex();
-    const sessions = sessionsByProject.get(normalizedProjectPath) || [];
+    const sessions = [...(sessionsByProject.get(normalizedProjectPath) || [])];
+
+    if (normalizedLegacyProjectPath && normalizedLegacyProjectPath !== normalizedProjectPath) {
+      sessions.push(...(sessionsByProject.get(normalizedLegacyProjectPath) || []));
+    }
 
     // Return limited sessions for performance (0 = unlimited for deletion)
-    return limit > 0 ? sessions.slice(0, limit) : [...sessions];
+    const dedupedSessions = Array.from(new Map(sessions.map((session) => [session.id, session])).values());
+    return limit > 0 ? dedupedSessions.slice(0, limit) : dedupedSessions;
 
   } catch (error) {
     console.error('Error fetching Codex sessions:', error);
@@ -2434,7 +2659,14 @@ async function deleteCodexSession(sessionId) {
 // Get workspace root from project config
 async function getWorkspaceRootFromConfig() {
   const config = await loadProjectConfig();
-  return config._workspacesRoot || null;
+  const resolvedRoot = await resolveConfiguredWorkspacesRoot(config._workspacesRoot || null);
+
+  if (resolvedRoot && config._workspacesRoot !== resolvedRoot) {
+    config._workspacesRoot = resolvedRoot;
+    await saveProjectConfig(config);
+  }
+
+  return resolvedRoot || null;
 }
 
 // Save workspace root to project config
