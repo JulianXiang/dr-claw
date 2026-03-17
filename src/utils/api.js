@@ -34,10 +34,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     }),
-    register: (username, password, resetExisting = false) => fetch('/api/auth/register', {
+    register: (username, password, notificationEmail, resetExisting = false) => fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, resetExisting }),
+      body: JSON.stringify({ username, password, notificationEmail, resetExisting }),
     }),
     user: () => authenticatedFetch('/api/auth/user'),
     logout: () => authenticatedFetch('/api/auth/logout', { method: 'POST' }),
@@ -46,6 +46,20 @@ export const api = {
   // Protected endpoints
   // config endpoint removed - no longer needed (frontend uses window.location)
   projects: () => authenticatedFetch('/api/projects'),
+  settings: {
+    autoResearchEmail: () => authenticatedFetch('/api/settings/auto-research-email'),
+    updateAutoResearchEmail: (senderEmail) =>
+      authenticatedFetch('/api/settings/auto-research-email', {
+        method: 'PUT',
+        body: JSON.stringify({ senderEmail }),
+      }),
+    autoResearchResendKey: () => authenticatedFetch('/api/settings/auto-research-resend-key'),
+    updateAutoResearchResendKey: (apiKey) =>
+      authenticatedFetch('/api/settings/auto-research-resend-key', {
+        method: 'PUT',
+        body: JSON.stringify({ apiKey }),
+      }),
+  },
   projectTokenUsageSummary: (projects) =>
     authenticatedFetch('/api/projects/token-usage-summary', {
       method: 'POST',
@@ -205,6 +219,19 @@ export const api = {
       }),
   },
 
+  autoResearch: {
+    status: (projectName) =>
+      authenticatedFetch(`/api/auto-research/${encodeURIComponent(projectName)}/status`),
+    start: (projectName) =>
+      authenticatedFetch(`/api/auto-research/${encodeURIComponent(projectName)}/start`, {
+        method: 'POST',
+      }),
+    cancel: (projectName) =>
+      authenticatedFetch(`/api/auto-research/${encodeURIComponent(projectName)}/cancel`, {
+        method: 'POST',
+      }),
+  },
+
   // Workspace root
   getWorkspaceRoot: () => authenticatedFetch('/api/projects/workspace-root'),
   setWorkspaceRoot: (path) =>
@@ -229,6 +256,12 @@ export const api = {
 
   // User endpoints
   user: {
+    profile: () => authenticatedFetch('/api/user/profile'),
+    updateProfile: (notificationEmail) =>
+      authenticatedFetch('/api/user/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ notificationEmail }),
+      }),
     gitConfig: () => authenticatedFetch('/api/user/git-config'),
     updateGitConfig: (gitName, gitEmail) =>
       authenticatedFetch('/api/user/git-config', {

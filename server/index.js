@@ -67,6 +67,7 @@ import skillsRoutes from './routes/skills.js';
 import telemetryRoutes from './routes/telemetry.js';
 import computeRoutes from './routes/compute.js';
 import newsRoutes from './routes/news.js';
+import autoResearchRoutes from './routes/auto-research.js';
 import { initializeDatabase } from './database/db.js';
 import { validateApiKey, authenticateToken, authenticateWebSocket } from './middleware/auth.js';
 import { IS_PLATFORM } from './constants/config.js';
@@ -425,6 +426,9 @@ app.use('/api/compute', authenticateToken, computeRoutes);
 
 // News API Routes (protected)
 app.use('/api/news', authenticateToken, newsRoutes);
+
+// Auto Research API Routes (protected)
+app.use('/api/auto-research', authenticateToken, autoResearchRoutes);
 
 // Agent API Routes (uses API key authentication)
 app.use('/api/agent', agentRoutes);

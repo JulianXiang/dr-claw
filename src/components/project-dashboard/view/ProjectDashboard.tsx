@@ -17,7 +17,7 @@ import type { AppTab, Project, ProjectSession } from '../../../types/app';
 
 type ProjectDashboardProps = {
   projects: Project[];
-  onProjectAction: (project: Project, tab: AppTab) => void;
+  onProjectAction: (project: Project, tab: AppTab, sessionId?: string | null) => void;
 };
 
 type TaskmasterMetadata = {
@@ -36,6 +36,43 @@ type ProjectTokenUsageSummary = {
   generatedAt?: string;
   workspace: TokenUsageTotals;
   projects: Record<string, TokenUsageTotals>;
+};
+
+type AutoResearchRun = {
+  id: string;
+  status: string;
+  sessionId?: string | null;
+  currentTaskId?: string | null;
+  completedTasks?: number;
+  totalTasks?: number;
+  error?: string | null;
+};
+
+type AutoResearchStatus = {
+  provider?: string;
+  eligibility?: {
+    eligible: boolean;
+    reasons: string[];
+  };
+  profile?: {
+    notificationEmail?: string | null;
+  };
+  mail?: {
+    senderEmail?: string | null;
+  };
+  pipeline?: {
+    hasResearchBrief?: boolean;
+    hasTasksFile?: boolean;
+    actionableTaskCount?: number;
+    completedTaskCount?: number;
+    totalTaskCount?: number;
+    nextTask?: {
+      id?: string | number;
+      title?: string;
+    } | null;
+  };
+  activeRun?: AutoResearchRun | null;
+  latestRun?: AutoResearchRun | null;
 };
 
 const PROJECT_TONES = [
@@ -169,6 +206,8 @@ export default function ProjectDashboard({
   const { t } = useTranslation('common');
   const now = new Date();
   const [tokenUsageSummary, setTokenUsageSummary] = useState<ProjectTokenUsageSummary | null>(null);
+  const [autoResearchStatuses, setAutoResearchStatuses] = useState<Record<string, AutoResearchStatus>>({});
+  const [autoResearchLoading, setAutoResearchLoading] = useState<Record<string, boolean>>({});
 
   const totals = useMemo(() => {
     const projectCount = projects.length;
@@ -241,6 +280,128 @@ export default function ProjectDashboard({
       cancelled = true;
     };
   }, [projectUsageRefreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchStatuses = async () => {
+      if (projects.length === 0) {
+        if (!cancelled) {
+          setAutoResearchStatuses({});
+        }
+        return;
+      }
+
+      const entries = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const response = await api.autoResearch.status(project.name);
+            if (!response.ok) {
+              return [project.name, null] as const;
+            }
+            const data = await response.json() as AutoResearchStatus;
+            return [project.name, data] as const;
+          } catch (error) {
+            console.error('Failed to fetch Auto Research status:', error);
+            return [project.name, null] as const;
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        setAutoResearchStatuses(
+          Object.fromEntries(entries.filter((entry): entry is readonly [string, AutoResearchStatus] => Boolean(entry[1]))),
+        );
+      }
+    };
+
+    void fetchStatuses();
+    const intervalId = window.setInterval(() => {
+      void fetchStatuses();
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [projectUsageRefreshKey, projects]);
+
+  const refreshAutoResearchStatus = async (projectName: string) => {
+    try {
+      const response = await api.autoResearch.status(projectName);
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json() as AutoResearchStatus;
+      setAutoResearchStatuses((current) => ({
+        ...current,
+        [projectName]: data,
+      }));
+    } catch (error) {
+      console.error('Failed to refresh Auto Research status:', error);
+    }
+  };
+
+  const handleAutoResearchStart = async (projectName: string) => {
+    setAutoResearchLoading((current) => ({ ...current, [projectName]: true }));
+    try {
+      const response = await api.autoResearch.start(projectName);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error?.error || 'Failed to start Auto Research');
+      }
+      await refreshAutoResearchStatus(projectName);
+    } catch (error) {
+      console.error('Failed to start Auto Research:', error);
+      window.alert(error instanceof Error ? error.message : 'Failed to start Auto Research');
+    } finally {
+      setAutoResearchLoading((current) => ({ ...current, [projectName]: false }));
+    }
+  };
+
+  const handleAutoResearchCancel = async (projectName: string) => {
+    setAutoResearchLoading((current) => ({ ...current, [projectName]: true }));
+    try {
+      const response = await api.autoResearch.cancel(projectName);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error?.error || 'Failed to cancel Auto Research');
+      }
+      await refreshAutoResearchStatus(projectName);
+    } catch (error) {
+      console.error('Failed to cancel Auto Research:', error);
+      window.alert(error instanceof Error ? error.message : 'Failed to cancel Auto Research');
+    } finally {
+      setAutoResearchLoading((current) => ({ ...current, [projectName]: false }));
+    }
+  };
+
+  const getAutoResearchReasonLabel = (reason?: string) => {
+    switch (reason) {
+      case 'notification_email_missing':
+        return 'Add a notification email in Settings';
+      case 'research_brief_missing':
+        return 'Missing research_brief.json';
+      case 'tasks_file_missing':
+        return 'Missing tasks.json';
+      case 'no_actionable_tasks':
+        return 'No pending tasks left';
+      case 'run_in_progress':
+        return 'Run already in progress';
+      default:
+        return 'Unavailable';
+    }
+  };
+
+  const getAutoResearchHint = (status?: AutoResearchStatus) => {
+    if (!status?.profile?.notificationEmail) {
+      return 'Set your notification email in Settings before running Auto Research.';
+    }
+    if (!status?.mail?.senderEmail) {
+      return 'Set the AutoResearch sender email in Settings before expecting email delivery.';
+    }
+    return 'Completion emails will use the saved sender and notification email settings.';
+  };
 
   if (projects.length === 0) {
     return (
@@ -360,6 +521,11 @@ export default function ProjectDashboard({
             const progress = getProgress(project);
             const lastActivity = getLastActivity(project);
             const projectTokenUsage = tokenUsageSummary?.projects?.[project.name];
+            const autoResearch = autoResearchStatuses[project.name];
+            const activeRun = autoResearch?.activeRun;
+            const latestRun = autoResearch?.latestRun;
+            const autoResearchDisabledReason = autoResearch?.eligibility?.reasons?.[0];
+            const autoResearchBusy = Boolean(autoResearchLoading[project.name]);
             const tone = PROJECT_TONES[index % PROJECT_TONES.length];
 
             return (
@@ -453,7 +619,75 @@ export default function ProjectDashboard({
                     </div>
                   </div>
 
+                  <div className="rounded-2xl border border-border/50 bg-background/70 p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-foreground">Auto Research</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {activeRun
+                            ? `Running ${activeRun.completedTasks ?? 0}/${activeRun.totalTasks ?? 0}${activeRun.currentTaskId ? `, task ${activeRun.currentTaskId}` : ''}`
+                            : autoResearch?.eligibility?.eligible
+                              ? `Ready via ${autoResearch.provider || 'claude'}`
+                              : getAutoResearchReasonLabel(autoResearchDisabledReason)}
+                        </div>
+                      </div>
+                      {activeRun ? (
+                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                          {activeRun.status}
+                        </span>
+                      ) : latestRun ? (
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-background/75 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                          Last: {latestRun.status}
+                        </span>
+                      ) : null}
+                    </div>
+                    {latestRun?.error ? (
+                      <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                        {latestRun.error}
+                      </div>
+                    ) : null}
+                    {autoResearch?.pipeline?.nextTask?.title && !activeRun ? (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Next: {autoResearch.pipeline.nextTask.title}
+                      </div>
+                    ) : null}
+                    {!activeRun ? (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {getAutoResearchHint(autoResearch)}
+                      </div>
+                    ) : null}
+                    {activeRun?.sessionId ? (
+                      <div className="mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full bg-white/60 backdrop-blur dark:bg-slate-950/35"
+                          onClick={() => onProjectAction(project, 'chat', activeRun.sessionId ?? null)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Open Session
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={activeRun ? 'outline' : 'default'}
+                      size="sm"
+                      className="rounded-full"
+                      disabled={autoResearchBusy || (!activeRun && !autoResearch?.eligibility?.eligible)}
+                      onClick={() => {
+                        if (activeRun) {
+                          void handleAutoResearchCancel(project.name);
+                          return;
+                        }
+                        void handleAutoResearchStart(project.name);
+                      }}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {autoResearchBusy ? 'Working...' : activeRun ? 'Cancel Auto Research' : 'Auto Research'}
+                    </Button>
                     <Button
                       variant="default"
                       size="sm"

@@ -1,7 +1,9 @@
 import express from 'express';
-import { apiKeysDb, credentialsDb } from '../database/db.js';
+import { apiKeysDb, appSettingsDb, credentialsDb } from '../database/db.js';
 
 const router = express.Router();
+const AUTO_RESEARCH_SENDER_EMAIL_KEY = 'auto_research_sender_email';
+const AUTO_RESEARCH_RESEND_API_KEY = 'auto_research_resend_api_key';
 
 // ===============================
 // API Keys Management
@@ -172,6 +174,69 @@ router.patch('/credentials/:credentialId/toggle', async (req, res) => {
   } catch (error) {
     console.error('Error toggling credential:', error);
     res.status(500).json({ error: 'Failed to toggle credential' });
+  }
+});
+
+router.get('/auto-research-email', async (req, res) => {
+  try {
+    res.json({
+      senderEmail: appSettingsDb.get(AUTO_RESEARCH_SENDER_EMAIL_KEY),
+    });
+  } catch (error) {
+    console.error('Error fetching Auto Research sender email:', error);
+    res.status(500).json({ error: 'Failed to fetch Auto Research sender email' });
+  }
+});
+
+router.put('/auto-research-email', async (req, res) => {
+  try {
+    const rawEmail = typeof req.body?.senderEmail === 'string' ? req.body.senderEmail.trim().toLowerCase() : '';
+    if (!rawEmail) {
+      return res.status(400).json({ error: 'Sender email is required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(rawEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    appSettingsDb.set(AUTO_RESEARCH_SENDER_EMAIL_KEY, rawEmail);
+    res.json({ success: true, senderEmail: rawEmail });
+  } catch (error) {
+    console.error('Error saving Auto Research sender email:', error);
+    res.status(500).json({ error: 'Failed to save Auto Research sender email' });
+  }
+});
+
+router.get('/auto-research-resend-key', async (req, res) => {
+  try {
+    const apiKey = appSettingsDb.get(AUTO_RESEARCH_RESEND_API_KEY);
+    res.json({
+      configured: Boolean(apiKey),
+      maskedKey: apiKey ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)}` : null,
+    });
+  } catch (error) {
+    console.error('Error fetching Auto Research Resend key:', error);
+    res.status(500).json({ error: 'Failed to fetch Auto Research Resend key' });
+  }
+});
+
+router.put('/auto-research-resend-key', async (req, res) => {
+  try {
+    const rawKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : '';
+    if (!rawKey) {
+      return res.status(400).json({ error: 'Resend API key is required' });
+    }
+
+    appSettingsDb.set(AUTO_RESEARCH_RESEND_API_KEY, rawKey);
+    res.json({
+      success: true,
+      configured: true,
+      maskedKey: `${rawKey.slice(0, 6)}...${rawKey.slice(-4)}`,
+    });
+  } catch (error) {
+    console.error('Error saving Auto Research Resend key:', error);
+    res.status(500).json({ error: 'Failed to save Auto Research Resend key' });
   }
 });
 

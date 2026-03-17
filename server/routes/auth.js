@@ -16,15 +16,21 @@ router.get('/status', async (req, res) => {
 // User registration (setup)
 router.post('/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, notificationEmail } = req.body;
 
     // Validate input
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    if (!username || !password || !notificationEmail) {
+      return res.status(400).json({ error: 'Username, password, and email are required' });
     }
 
     if (username.length < 3 || password.length < 6) {
       return res.status(400).json({ error: 'Username must be at least 3 characters, password at least 6 characters' });
+    }
+
+    const email = String(notificationEmail).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Check if user already exists
@@ -38,7 +44,7 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     // Create user
-    const user = userDb.createUser(username, passwordHash);
+    const user = userDb.createUser(username, passwordHash, email);
 
     // Generate token
     const token = generateToken(user);
@@ -48,7 +54,7 @@ router.post('/register', async (req, res) => {
 
     res.json({
       success: true,
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, notificationEmail: user.notification_email },
       token
     });
 
@@ -105,7 +111,10 @@ router.post('/login', async (req, res) => {
 // Get current user (protected route)
 router.get('/user', authenticateToken, (req, res) => {
   res.json({
-    user: req.user
+    user: {
+      ...req.user,
+      notificationEmail: req.user.notification_email || null,
+    }
   });
 });
 

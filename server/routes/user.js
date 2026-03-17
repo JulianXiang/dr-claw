@@ -88,6 +88,55 @@ router.post('/complete-onboarding', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const profile = userDb.getProfile(userId);
+
+    res.json({
+      success: true,
+      profile: {
+        id: profile?.id,
+        username: profile?.username,
+        notificationEmail: profile?.notification_email || null,
+      }
+    });
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
+  }
+});
+
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const rawEmail = typeof req.body?.notificationEmail === 'string' ? req.body.notificationEmail.trim().toLowerCase() : '';
+
+    if (!rawEmail) {
+      return res.status(400).json({ error: 'Notification email is required' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(rawEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const profile = userDb.updateProfile(userId, rawEmail);
+
+    res.json({
+      success: true,
+      profile: {
+        id: profile?.id,
+        username: profile?.username,
+        notificationEmail: profile?.notification_email || null,
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update user profile' });
+  }
+});
+
 router.get('/onboarding-status', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;

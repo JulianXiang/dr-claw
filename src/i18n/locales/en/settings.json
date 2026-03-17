@@ -3,6 +3,7 @@
   "tabs": {
     "account": "Account",
     "permissions": "Permissions",
+    "email": "Email",
     "mcpServers": "MCP Servers",
     "appearance": "Appearance"
   },
@@ -85,6 +86,7 @@
   },
   "mainTabs": {
     "agents": "Agents",
+    "email": "Email",
     "appearance": "Appearance",
     "git": "Git",
     "apiTokens": "API & Tokens",

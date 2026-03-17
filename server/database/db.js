@@ -91,6 +91,11 @@ const runMigrations = () => {
       db.exec('ALTER TABLE users ADD COLUMN has_completed_onboarding BOOLEAN DEFAULT 0');
     }
 
+    if (!columnNames.includes('notification_email')) {
+      console.log('Running migration: Adding notification_email column');
+      db.exec('ALTER TABLE users ADD COLUMN notification_email TEXT');
+    }
+
     console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Error running migrations:', error.message);
@@ -124,11 +129,11 @@ const userDb = {
   },
 
   // Create a new user
-  createUser: (username, passwordHash) => {
+  createUser: (username, passwordHash, notificationEmail = null) => {
     try {
-      const stmt = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
-      const result = stmt.run(username, passwordHash);
-      return { id: result.lastInsertRowid, username };
+      const stmt = db.prepare('INSERT INTO users (username, password_hash, notification_email) VALUES (?, ?, ?)');
+      const result = stmt.run(username, passwordHash, notificationEmail);
+      return { id: result.lastInsertRowid, username, notification_email: notificationEmail };
     } catch (err) {
       throw err;
     }
@@ -164,7 +169,7 @@ const userDb = {
   // Get user by ID
   getUserById: (userId) => {
     try {
-      const row = db.prepare('SELECT id, username, created_at, last_login FROM users WHERE id = ? AND is_active = 1').get(userId);
+      const row = db.prepare('SELECT id, username, notification_email, created_at, last_login FROM users WHERE id = ? AND is_active = 1').get(userId);
       return row;
     } catch (err) {
       throw err;
@@ -173,7 +178,7 @@ const userDb = {
 
   getFirstUser: () => {
     try {
-      const row = db.prepare('SELECT id, username, created_at, last_login FROM users WHERE is_active = 1 LIMIT 1').get();
+      const row = db.prepare('SELECT id, username, notification_email, created_at, last_login FROM users WHERE is_active = 1 LIMIT 1').get();
       return row;
     } catch (err) {
       throw err;
@@ -214,7 +219,166 @@ const userDb = {
     } catch (err) {
       throw err;
     }
+  },
+
+  getProfile: (userId) => {
+    try {
+      return db.prepare('SELECT id, username, notification_email FROM users WHERE id = ? AND is_active = 1').get(userId);
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  updateProfile: (userId, notificationEmail) => {
+    try {
+      db.prepare('UPDATE users SET notification_email = ? WHERE id = ?').run(notificationEmail, userId);
+      return userDb.getProfile(userId);
+    } catch (err) {
+      throw err;
+    }
   }
+};
+
+const autoResearchDb = {
+  createRun: (input) => {
+    try {
+      db.prepare(`
+        INSERT INTO auto_research_runs (
+          id, user_id, project_name, project_path, provider, status, session_id,
+          current_task_id, completed_tasks, total_tasks, error, metadata
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        input.id,
+        input.userId,
+        input.projectName,
+        input.projectPath,
+        input.provider || 'claude',
+        input.status || 'queued',
+        input.sessionId || null,
+        input.currentTaskId || null,
+        input.completedTasks || 0,
+        input.totalTasks || 0,
+        input.error || null,
+        input.metadata ? JSON.stringify(input.metadata) : null
+      );
+      return autoResearchDb.getRunById(input.id);
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  getRunById: (runId) => {
+    try {
+      const row = db.prepare('SELECT * FROM auto_research_runs WHERE id = ?').get(runId);
+      return row ? {
+        ...row,
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
+      } : null;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  getLatestRunForProject: (userId, projectName) => {
+    try {
+      const row = db.prepare(`
+        SELECT * FROM auto_research_runs
+        WHERE user_id = ? AND project_name = ?
+        ORDER BY started_at DESC
+        LIMIT 1
+      `).get(userId, projectName);
+      return row ? {
+        ...row,
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
+      } : null;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  getActiveRunForProject: (userId, projectName) => {
+    try {
+      const row = db.prepare(`
+        SELECT * FROM auto_research_runs
+        WHERE user_id = ? AND project_name = ? AND status IN ('queued', 'running', 'cancelling')
+        ORDER BY started_at DESC
+        LIMIT 1
+      `).get(userId, projectName);
+      return row ? {
+        ...row,
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
+      } : null;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  updateRun: (runId, updates = {}) => {
+    try {
+      const existing = autoResearchDb.getRunById(runId);
+      if (!existing) {
+        return null;
+      }
+
+      const mergedMetadata = Object.prototype.hasOwnProperty.call(updates, 'metadata')
+        ? updates.metadata
+        : existing.metadata;
+
+      db.prepare(`
+        UPDATE auto_research_runs
+        SET
+          status = ?,
+          session_id = ?,
+          current_task_id = ?,
+          completed_tasks = ?,
+          total_tasks = ?,
+          error = ?,
+          metadata = ?,
+          finished_at = ?,
+          email_sent_at = ?
+        WHERE id = ?
+      `).run(
+        updates.status ?? existing.status,
+        updates.sessionId ?? existing.session_id,
+        updates.currentTaskId ?? existing.current_task_id,
+        updates.completedTasks ?? existing.completed_tasks,
+        updates.totalTasks ?? existing.total_tasks,
+        updates.error ?? existing.error,
+        mergedMetadata ? JSON.stringify(mergedMetadata) : null,
+        updates.finishedAt ?? existing.finished_at,
+        updates.emailSentAt ?? existing.email_sent_at,
+        runId
+      );
+
+      return autoResearchDb.getRunById(runId);
+    } catch (err) {
+      throw err;
+    }
+  },
+};
+
+const appSettingsDb = {
+  get: (key) => {
+    try {
+      const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key);
+      return row ? row.value : null;
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  set: (key, value) => {
+    try {
+      db.prepare(`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      `).run(key, value);
+      return appSettingsDb.get(key);
+    } catch (err) {
+      throw err;
+    }
+  },
 };
 
 // API Keys database operations
@@ -545,6 +709,8 @@ export {
   db,
   initializeDatabase,
   userDb,
+  autoResearchDb,
+  appSettingsDb,
   apiKeysDb,
   credentialsDb,
   githubTokensDb, // Backward compatibility

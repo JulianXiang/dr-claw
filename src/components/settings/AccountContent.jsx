@@ -97,7 +97,6 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
 
       <div className={`${config.bgClass} border ${config.borderClass} rounded-lg p-4`}>
         <div className="space-y-4">
-          {/* Connection Status */}
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <div className={`font-medium ${config.textClass}`}>

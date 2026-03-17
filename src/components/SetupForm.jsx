@@ -6,6 +6,7 @@ const SetupForm = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [notificationEmail, setNotificationEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,9 +31,15 @@ const SetupForm = () => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(notificationEmail.trim())) {
+      setError('A valid email is required');
+      return;
+    }
+
     setIsLoading(true);
 
-    const result = await register(username, password);
+    const result = await register(username, password, notificationEmail.trim());
 
     if (!result.success) {
       setError(result.error);
@@ -69,6 +76,22 @@ const SetupForm = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter your username"
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="notificationEmail" className="block text-sm font-medium text-foreground mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                id="notificationEmail"
+                value={notificationEmail}
+                onChange={(e) => setNotificationEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter your email"
                 required
                 disabled={isLoading}
               />

@@ -3,6 +3,7 @@
   "tabs": {
     "account": "계정",
     "permissions": "권한",
+    "email": "이메일",
     "mcpServers": "MCP 서버",
     "appearance": "외관"
   },
@@ -85,6 +86,7 @@
   },
   "mainTabs": {
     "agents": "에이전트",
+    "email": "이메일",
     "appearance": "외관",
     "git": "Git",
     "apiTokens": "API & 토큰",

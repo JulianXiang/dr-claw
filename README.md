@@ -61,6 +61,7 @@ Dr. Claw is a general-purpose AI research assistant designed to help researchers
 ## Highlights
 
 - **🔬 Research Lab** — Structured dashboard for end-to-end research: define your brief, generate a pipeline of tasks, track progress across Survey → Ideation → Experiment → Publication → Promotion, and inspect source papers, ideas (rendered with LaTeX math), and cache artifacts — all at a glance
+- **⚡ Auto Research** — Start one-click sequential task execution directly from the Project Dashboard, open the generated session live, and receive an email when the run completes
 - **📚 100+ Research Skills** — A curated library spanning idea generation, code survey, experiment development & analysis, paper writing, review response, and delivery — automatically discovered by agents and applied as task-level assistance
 - **🗂️ Chat-Driven Pipeline** — Describe your research idea in Chat; the agent uses the `inno-pipeline-planner` skill to interactively generate a structured research brief and task list — no manual templates needed
 - **🤖 Multi-Agent Backend** — Seamlessly switch between Claude Code, Gemini CLI, and Codex as your execution engines
@@ -132,6 +133,8 @@ Dr. Claw reads local settings from `.env`. For most users, the only required ste
 
 For the full environment reference and deployment notes, see [docs/configuration.md](docs/configuration.md).
 
+Auto Research email notifications are configured inside the app at **Settings → Email**. The current v1 flow uses Claude to run research tasks unattended, and interrupted runs are automatically reconciled so they do not remain stuck in `running`.
+
 <a id="research-lab-quick-example"></a>
 
 ## Research Lab — Quick Example
@@ -141,9 +144,10 @@ The core feature of Dr. Claw is the **Research Lab**.
 The typical flow is:
 
 1. Configure one supported agent in **Settings**.
-2. Describe your research idea in **Chat**.
-3. Let the agent generate `.pipeline/docs/research_brief.json` and `.pipeline/tasks/tasks.json`.
-4. Review the pipeline in **Research Lab** and send tasks back to **Chat** for execution.
+2. Configure notification settings in **Settings → Email** if you want completion email notifications.
+3. Describe your research idea in **Chat**.
+4. Let the agent generate `.pipeline/docs/research_brief.json` and `.pipeline/tasks/tasks.json`.
+5. Review the pipeline in **Research Lab** and either send tasks back to **Chat** manually or click **Auto Research** on the Project Dashboard to run them sequentially.
 
 For full step-by-step operations, see **Usage Guide** below.
 
@@ -181,6 +185,18 @@ Switch to **Research Lab** to review the generated tasks, progress metrics, and 
 1. Choose a CLI backend from the **CLI selector** (Claude Code, Gemini CLI, or Codex).
 2. In **Research Lab**, click **Go to Chat** or **Use in Chat** on a pending task.
 3. The agent executes the task and writes results back to the project.
+
+</details>
+
+<details>
+<summary><strong>Optional — Run Auto Research from the Project Dashboard</strong></summary>
+
+If you want Dr. Claw to execute the generated task list end-to-end for you, use **Auto Research**:
+1. Open **Settings → Email** and configure `Notification Email`, `Sender Email`, and `Resend API Key`.
+2. Make sure your project already contains `.pipeline/docs/research_brief.json` and `.pipeline/tasks/tasks.json`.
+3. Open the **Project Dashboard** and click **Auto Research** on the project card.
+4. Use **Open Session** to jump into the live Claude session created for the run.
+5. When all tasks finish, Dr. Claw sends a completion email. If the session is interrupted, stale runs are recovered automatically so they can be cancelled cleanly instead of staying stuck in `running`.
 
 </details>
 

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    notification_email TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login DATETIME,
     is_active BOOLEAN DEFAULT 1,
@@ -82,3 +83,32 @@ CREATE TABLE IF NOT EXISTS projects (
 
 CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path);
+
+CREATE TABLE IF NOT EXISTS auto_research_runs (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    project_name TEXT NOT NULL,
+    project_path TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'claude',
+    status TEXT NOT NULL,
+    session_id TEXT,
+    current_task_id TEXT,
+    completed_tasks INTEGER DEFAULT 0,
+    total_tasks INTEGER DEFAULT 0,
+    error TEXT,
+    metadata TEXT,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    finished_at DATETIME,
+    email_sent_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_auto_research_runs_user ON auto_research_runs(user_id);
+CREATE INDEX IF NOT EXISTS idx_auto_research_runs_project ON auto_research_runs(project_name);
+CREATE INDEX IF NOT EXISTS idx_auto_research_runs_status ON auto_research_runs(status);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
