@@ -148,10 +148,13 @@ const CodeBlock = ({ node, inline, className, children, ...props }: CodeBlockPro
 };
 
 // Detect file path patterns like "src/lib.rs:36", "README.md", "package.json"
+// Also matches known extensionless files like Dockerfile, Makefile, etc.
+const EXTENSIONLESS_FILES = /(?:Dockerfile|Makefile|Procfile|Gemfile|Rakefile|Vagrantfile|Brewfile|Guardfile|Justfile|Taskfile)$/;
 const FILE_PATH_RE = /^([\w./@\\-][\w./@ \\-]*\.\w{1,10})(:\d+)?$/;
 
 function isFilePath(text: string): boolean {
-  return FILE_PATH_RE.test(text.trim());
+  const trimmed = text.trim();
+  return FILE_PATH_RE.test(trimmed) || EXTENSIONLESS_FILES.test(trimmed);
 }
 
 function parseFilePath(text: string): { filePath: string; line?: string } {

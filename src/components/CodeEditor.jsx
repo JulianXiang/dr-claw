@@ -174,6 +174,8 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
     return localStorage.getItem('codeEditorFontSize') || '12';
   });
   const [markdownPreview, setMarkdownPreview] = useState(false);
+  const [candidates, setCandidates] = useState(null);
+  const [resolvedPath, setResolvedPath] = useState(null);
   const editorRef = useRef(null);
 
   // Check if file is markdown
@@ -189,6 +191,12 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
   const isUnsupported = useMemo(() => UNSUPPORTED_EXTENSIONS.has(fileExt), [fileExt]);
   const isBinary = isPdf || isImage;
   const [blobUrl, setBlobUrl] = useState(null);
+
+  // Reset disambiguation state when file changes
+  useEffect(() => {
+    setResolvedPath(null);
+    setCandidates(null);
+  }, [file.path]);
 
   // Create minimap extension with chunk-based gutters
   const minimapExtension = useMemo(() => {
@@ -475,14 +483,26 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
           return;
         }
 
-        // Otherwise, load from disk
-        const response = await api.readFile(file.projectName, file.path);
+        // Otherwise, load from disk (use resolved path if available after disambiguation)
+        const actualPath = resolvedPath || file.path;
+        const response = await api.readFile(file.projectName, actualPath);
 
         if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('File not found');
+          }
           throw new Error(`Failed to load file: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
+
+        // Check for ambiguous bare filename
+        if (data.ambiguous && data.candidates) {
+          setCandidates(data.candidates);
+          setLoading(false);
+          return;
+        }
+
         setContent(data.content);
       } catch (error) {
         console.error('Error loading file:', error);
@@ -497,7 +517,7 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
     return () => {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [file, projectPath, isBinary, isUnsupported]);
+  }, [file, projectPath, isBinary, isUnsupported, resolvedPath]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -508,7 +528,7 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
         contentLength: content?.length
       });
 
-      const response = await api.saveFile(file.projectName, file.path, content);
+      const response = await api.saveFile(file.projectName, resolvedPath || file.path, content);
 
       console.log('Save response:', {
         status: response.status,
@@ -667,6 +687,66 @@ function CodeEditor({ file, onClose, projectPath, isSidebar = false, isExpanded 
           </div>
         )}
       </>
+    );
+  }
+
+  if (candidates && !loading) {
+    const pickerContent = (
+      <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
+        <div className="max-w-md w-full max-h-full flex flex-col">
+          <div className="text-center mb-4 shrink-0">
+            <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Multiple files found
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Select the file you want to open:
+            </p>
+          </div>
+          <div className="space-y-1.5 overflow-y-auto">
+            {candidates.map(c => (
+              <button key={c}
+                className="w-full text-left px-3 py-2 rounded-md border
+                  border-gray-200 dark:border-gray-700
+                  hover:bg-blue-50 dark:hover:bg-blue-900/20
+                  hover:border-blue-300 dark:hover:border-blue-700
+                  text-sm font-mono text-gray-700 dark:text-gray-300
+                  transition-colors"
+                onClick={() => {
+                  setCandidates(null);
+                  setResolvedPath(c);
+                }}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+
+    if (isSidebar) {
+      return (
+        <div className="w-full h-full flex flex-col bg-background relative">
+          <button onClick={onClose} className="absolute top-2 right-2 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded z-10">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+          {pickerContent}
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-[9999] md:bg-black/50 md:flex md:items-center md:justify-center">
+        <div className="w-full h-full md:rounded-lg md:w-[600px] md:h-auto bg-white dark:bg-gray-900 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+            <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{file.name}</span>
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+          {pickerContent}
+        </div>
+      </div>
     );
   }
 

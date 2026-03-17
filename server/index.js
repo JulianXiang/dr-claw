@@ -799,25 +799,12 @@ app.get('/api/projects/:projectName/file', authenticateToken, async (req, res) =
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        const resolveWithPipelineFallback = (inputPath) => {
-            if (!inputPath || typeof inputPath !== 'string') return path.resolve(projectRoot, '');
-            if (path.isAbsolute(inputPath)) return path.resolve(inputPath);
-
-            const direct = path.resolve(projectRoot, inputPath);
-            const isSimpleName = !inputPath.includes('/') && !inputPath.includes('\\');
-            if (!isSimpleName) return direct;
-
-            const fallbackMap = {
-                'research_brief.json': '.pipeline/docs/research_brief.json',
-                'tasks.json': '.pipeline/tasks/tasks.json',
-                'pipeline_config.json': '.pipeline/config.json'
-            };
-            const mapped = fallbackMap[inputPath];
-            return mapped ? path.resolve(projectRoot, mapped) : direct;
-        };
-
-        // Handle both absolute and relative paths with pipeline file fallback
-        const resolved = resolveWithPipelineFallback(filePath);
+        // Handle both absolute and relative paths with pipeline file fallback + bare name search
+        const result = await resolveProjectFilePath(projectRoot, filePath);
+        if (result.candidates) {
+            return res.json({ ambiguous: true, candidates: result.candidates });
+        }
+        const resolved = result.resolved;
         const normalizedRoot = path.resolve(projectRoot) + path.sep;
         if (!resolved.startsWith(normalizedRoot)) {
             return res.status(403).json({ error: 'Path must be under project root' });
@@ -915,25 +902,12 @@ app.put('/api/projects/:projectName/file', authenticateToken, async (req, res) =
             return res.status(404).json({ error: 'Project not found' });
         }
 
-        const resolveWithPipelineFallback = (inputPath) => {
-            if (!inputPath || typeof inputPath !== 'string') return path.resolve(projectRoot, '');
-            if (path.isAbsolute(inputPath)) return path.resolve(inputPath);
-
-            const direct = path.resolve(projectRoot, inputPath);
-            const isSimpleName = !inputPath.includes('/') && !inputPath.includes('\\');
-            if (!isSimpleName) return direct;
-
-            const fallbackMap = {
-                'research_brief.json': '.pipeline/docs/research_brief.json',
-                'tasks.json': '.pipeline/tasks/tasks.json',
-                'pipeline_config.json': '.pipeline/config.json'
-            };
-            const mapped = fallbackMap[inputPath];
-            return mapped ? path.resolve(projectRoot, mapped) : direct;
-        };
-
-        // Handle both absolute and relative paths with pipeline file fallback
-        const resolved = resolveWithPipelineFallback(filePath);
+        // Handle both absolute and relative paths with pipeline file fallback + bare name search
+        const result = await resolveProjectFilePath(projectRoot, filePath);
+        if (result.candidates) {
+            return res.status(400).json({ error: 'Ambiguous filename', candidates: result.candidates });
+        }
+        const resolved = result.resolved;
         const normalizedRoot = path.resolve(projectRoot) + path.sep;
         if (!resolved.startsWith(normalizedRoot)) {
             return res.status(403).json({ error: 'Path must be under project root' });
@@ -2609,6 +2583,110 @@ function permToRwx(perm) {
     const w = perm & 2 ? 'w' : '-';
     const x = perm & 1 ? 'x' : '-';
     return r + w + x;
+}
+
+async function findAllFilesInProject(projectRoot, fileName, maxDepth = 10) {
+    const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
+    const results = [];
+    const queue = [[projectRoot, 0]];
+
+    while (queue.length > 0) {
+        const [dirPath, depth] = queue.shift();
+        let entries;
+        try {
+            entries = await fsPromises.readdir(dirPath, { withFileTypes: true });
+        } catch { continue; }
+
+        for (const entry of entries) {
+            const entryPath = path.join(dirPath, entry.name);
+            let isDir = entry.isDirectory();
+
+            // Resolve symlinks (e.g. .claude/skills/* are symlinked directories)
+            if (!isDir && entry.isSymbolicLink()) {
+                try {
+                    const stats = await fsPromises.stat(entryPath);
+                    isDir = stats.isDirectory();
+                } catch { continue; }
+            }
+
+            if (entry.name === fileName && !isDir) {
+                results.push(entryPath);
+                if (results.length >= 20) return results;
+            }
+            if (isDir && !SKIP_DIRS.has(entry.name)
+                && depth < maxDepth) {
+                queue.push([entryPath, depth + 1]);
+            }
+        }
+    }
+    return results;
+}
+
+async function resolveProjectFilePath(projectRoot, inputPath) {
+    if (!inputPath || typeof inputPath !== 'string') return { resolved: path.resolve(projectRoot, '') };
+    if (path.isAbsolute(inputPath)) return { resolved: path.resolve(inputPath) };
+
+    const direct = path.resolve(projectRoot, inputPath);
+    const isSimpleName = !inputPath.includes('/') && !inputPath.includes('\\');
+
+    // For paths with separators (e.g. "src/main.tsx"), check direct first, then search
+    if (!isSimpleName) {
+        try {
+            await fsPromises.access(direct);
+            return { resolved: direct };
+        } catch { /* not found at direct path */ }
+
+        // Search for the filename, then filter matches ending with the partial path
+        const fileName = path.basename(inputPath);
+        const normalizedInput = inputPath.split(path.sep).join('/');
+        const matches = await findAllFilesInProject(projectRoot, fileName);
+        const filtered = matches.filter(m => {
+            const rel = path.relative(projectRoot, m).split(path.sep).join('/');
+            return rel === normalizedInput || rel.endsWith('/' + normalizedInput);
+        });
+
+        if (filtered.length === 1) {
+            return { resolved: filtered[0] };
+        }
+        if (filtered.length > 1) {
+            return {
+                resolved: null,
+                candidates: filtered.map(m => path.relative(projectRoot, m))
+            };
+        }
+
+        return { resolved: direct };
+    }
+
+    // 1. Hardcoded pipeline fallbacks
+    const fallbackMap = {
+        'research_brief.json': '.pipeline/docs/research_brief.json',
+        'tasks.json': '.pipeline/tasks/tasks.json',
+        'pipeline_config.json': '.pipeline/config.json'
+    };
+    const mapped = fallbackMap[inputPath];
+    if (mapped) return { resolved: path.resolve(projectRoot, mapped) };
+
+    // 2. If the file exists at project root, use it
+    try {
+        await fsPromises.access(direct);
+        return { resolved: direct };
+    } catch { /* not at root */ }
+
+    // 3. Search project tree
+    const matches = await findAllFilesInProject(projectRoot, inputPath);
+    if (matches.length === 1) {
+        return { resolved: matches[0] };
+    }
+    if (matches.length > 1) {
+        return {
+            resolved: null,
+            candidates: matches.map(m => path.relative(projectRoot, m))
+        };
+    }
+
+    // 4. No match — fall back to direct path (will 404)
+    return { resolved: direct };
 }
 
 async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden = true) {
