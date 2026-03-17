@@ -47,6 +47,7 @@ export default function AppContent() {
     isLoadingProjects,
     isInputFocused,
     externalMessageUpdate,
+    importedProjectAnalysisPrompt,
     setActiveTab,
     setSidebarOpen,
     setIsInputFocused,
@@ -58,6 +59,7 @@ export default function AppContent() {
     pendingAutoIntake,
     handleProjectCreatedWithIntake,
     clearPendingAutoIntake,
+    clearImportedProjectAnalysisPrompt,
   } = useProjectsState({
     sessionId,
     navigate,
@@ -244,6 +246,8 @@ export default function AppContent() {
           externalMessageUpdate={externalMessageUpdate}
           pendingAutoIntake={pendingAutoIntake}
           clearPendingAutoIntake={clearPendingAutoIntake}
+          importedProjectAnalysisPrompt={importedProjectAnalysisPrompt}
+          clearImportedProjectAnalysisPrompt={clearImportedProjectAnalysisPrompt}
           onProjectSelect={handleProjectSelect}
         />
       </div>

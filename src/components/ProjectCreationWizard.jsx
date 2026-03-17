@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { api } from '../utils/api';
 import { useTranslation } from 'react-i18next';
 import generateWorkspaceName from '../utils/workspaceNameGenerator';
+import { buildImportedWorkspaceScanPrompt } from '../utils/importedWorkspaceAnalysis';
 
 const ProjectCreationWizard = ({ onClose, onProjectCreated }) => {
   const { t } = useTranslation();
@@ -193,7 +194,17 @@ const ProjectCreationWizard = ({ onClose, onProjectCreated }) => {
       }
 
       if (onProjectCreated) {
-        onProjectCreated(data.project);
+        const trimmedProjectName = projectName.trim() || data.project?.displayName || data.project?.name;
+        const creationOptions = workspaceType === 'existing'
+          ? {
+              importedProjectAnalysisPrompt: {
+                project: data.project,
+                prompt: buildImportedWorkspaceScanPrompt(trimmedProjectName),
+              },
+            }
+          : undefined;
+
+        onProjectCreated(data.project, creationOptions);
       }
 
       onClose();

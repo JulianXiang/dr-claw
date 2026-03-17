@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { AppTab, LoadingProgress, Project, ProjectSession, SessionProvider } from '../../../types/app';
+import type { AppTab, LoadingProgress, Project, ProjectCreationOptions, ProjectSession, SessionProvider } from '../../../types/app';
 
 export type ProjectSortOrder = 'name' | 'date';
 
@@ -43,6 +43,7 @@ export type SidebarProps = {
   onOpenDashboard: () => void;
   onOpenSkills: () => void;
   onOpenNews: () => void;
+  onImportedProjectCreated?: (project: Project, options?: ProjectCreationOptions) => void;
 };
 
 export type SessionViewModel = {

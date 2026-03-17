@@ -1,5 +1,20 @@
 export type SessionProvider = 'claude' | 'cursor' | 'codex' | 'gemini';
 
+export interface PendingAutoIntake {
+  prompt?: string | null;
+  triggerId?: string | null;
+}
+
+export interface ImportedProjectAnalysisPrompt {
+  project: Project;
+  prompt: string;
+}
+
+export interface ProjectCreationOptions {
+  autoIntake?: PendingAutoIntake | null;
+  importedProjectAnalysisPrompt?: ImportedProjectAnalysisPrompt | null;
+}
+
 export type AppTab = 'dashboard' | 'chat' | 'survey' | 'files' | 'shell' | 'git' | 'researchlab' | 'skills' | 'tasks' | 'preview' | 'compute' | 'news';
 
 export interface ProjectSession {

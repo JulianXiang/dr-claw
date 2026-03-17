@@ -81,6 +81,9 @@ const createFakeSubmitEvent = () => {
   return { preventDefault: () => undefined } as unknown as FormEvent<HTMLFormElement>;
 };
 
+const PROGRAMMATIC_SUBMIT_MAX_RETRIES = 12;
+const PROGRAMMATIC_SUBMIT_RETRY_DELAY_MS = 50;
+
 const isTemporarySessionId = (sessionId: string | null | undefined) =>
   Boolean(sessionId && sessionId.startsWith('new-session-'));
 
@@ -283,6 +286,32 @@ export function useChatComposerState({
       }
     }, 0);
   }, [setChatMessages]);
+
+  const submitProgrammaticInput = useCallback((content: string) => {
+    const nextContent = content || '';
+    setInput(nextContent);
+    inputValueRef.current = nextContent;
+
+    const attemptSubmit = (attempt = 0) => {
+      if (handleSubmitRef.current) {
+        handleSubmitRef.current(createFakeSubmitEvent());
+        return;
+      }
+
+      if (attempt >= PROGRAMMATIC_SUBMIT_MAX_RETRIES) {
+        console.warn('[Chat] Programmatic submit skipped because handleSubmit was not ready');
+        return;
+      }
+
+      setTimeout(() => {
+        attemptSubmit(attempt + 1);
+      }, PROGRAMMATIC_SUBMIT_RETRY_DELAY_MS);
+    };
+
+    setTimeout(() => {
+      attemptSubmit();
+    }, 0);
+  }, []);
 
   const executeCommand = useCallback(
     async (command: SlashCommand, rawInput?: string) => {
@@ -1086,5 +1115,6 @@ export function useChatComposerState({
     isInputFocused,
     intakeGreeting,
     setIntakeGreeting,
+    submitProgrammaticInput,
   };
 }

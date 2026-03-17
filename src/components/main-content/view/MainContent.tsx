@@ -53,6 +53,8 @@ function MainContent({
   externalMessageUpdate,
   pendingAutoIntake,
   clearPendingAutoIntake,
+  importedProjectAnalysisPrompt,
+  clearImportedProjectAnalysisPrompt,
   onProjectSelect,
 }: MainContentProps) {
   const { preferences } = useUiPreferences();
@@ -202,6 +204,8 @@ function MainContent({
                 onShowAllTasks={() => setActiveTab('researchlab')}
                 pendingAutoIntake={pendingAutoIntake}
                 clearPendingAutoIntake={clearPendingAutoIntake}
+                importedProjectAnalysisPrompt={importedProjectAnalysisPrompt}
+                clearImportedProjectAnalysisPrompt={clearImportedProjectAnalysisPrompt}
               />
             </ErrorBoundary>
           </div>

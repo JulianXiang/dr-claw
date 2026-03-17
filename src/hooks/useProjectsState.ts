@@ -4,15 +4,18 @@ import { api } from '../utils/api';
 import type {
   AppSocketMessage,
   AppTab,
+  ImportedProjectAnalysisPrompt,
   LoadingProgress,
+  ProjectCreationOptions,
   Project,
   ProjectSession,
   ProjectsUpdatedMessage,
+  PendingAutoIntake,
 } from '../types/app';
 
 declare global {
   interface Window {
-    handleProjectCreatedWithIntake?: (project: Project) => void;
+    handleProjectCreatedWithIntake?: (project: Project, options?: ProjectCreationOptions) => void;
   }
 }
 
@@ -126,7 +129,8 @@ export function useProjectsState({
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('agents');
   const [externalMessageUpdate, setExternalMessageUpdate] = useState(0);
-  const [pendingAutoIntake, setPendingAutoIntake] = useState(false);
+  const [pendingAutoIntake, setPendingAutoIntake] = useState<PendingAutoIntake | null>(null);
+  const [importedProjectAnalysisPrompt, setImportedProjectAnalysisPrompt] = useState<ImportedProjectAnalysisPrompt | null>(null);
 
   const loadingProgressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectsUpdateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -424,18 +428,20 @@ export function useProjectsState({
   );
 
   const handleProjectCreatedWithIntake = useCallback(
-    (project: Project) => {
+    (project: Project, options?: ProjectCreationOptions) => {
       setSelectedProject(project);
       setSelectedSession(null);
       setActiveTab('chat');
-      setPendingAutoIntake(true);
+      setPendingAutoIntake(options?.autoIntake ?? null);
+      setImportedProjectAnalysisPrompt(options?.importedProjectAnalysisPrompt ?? null);
       navigate('/');
       if (isMobile) setSidebarOpen(false);
     },
     [isMobile, navigate],
   );
 
-  const clearPendingAutoIntake = useCallback(() => setPendingAutoIntake(false), []);
+  const clearPendingAutoIntake = useCallback(() => setPendingAutoIntake(null), []);
+  const clearImportedProjectAnalysisPrompt = useCallback(() => setImportedProjectAnalysisPrompt(null), []);
 
   const handleOpenDashboard = useCallback(() => {
     setSelectedProject(null);
@@ -572,9 +578,13 @@ export function useProjectsState({
       onOpenDashboard: handleOpenDashboard,
       onOpenSkills: handleOpenSkills,
       onOpenNews: handleOpenNews,
+      onImportedProjectCreated: handleProjectCreatedWithIntake,
+      importedProjectAnalysisPrompt,
+      onDismissImportedProjectAnalysisPrompt: clearImportedProjectAnalysisPrompt,
     }),
     [
       handleNewSession,
+      handleProjectCreatedWithIntake,
       handleProjectDelete,
       handleProjectSelect,
       handleSessionDelete,
@@ -588,10 +598,12 @@ export function useProjectsState({
       handleOpenDashboard,
       handleOpenSkills,
       handleOpenNews,
+      importedProjectAnalysisPrompt,
       settingsInitialTab,
       selectedProject,
       selectedSession,
       showSettings,
+      clearImportedProjectAnalysisPrompt,
     ],
   );
 
@@ -607,6 +619,7 @@ export function useProjectsState({
     showSettings,
     settingsInitialTab,
     externalMessageUpdate,
+    importedProjectAnalysisPrompt,
     setActiveTab,
     setSidebarOpen,
     setIsInputFocused,
@@ -626,5 +639,6 @@ export function useProjectsState({
     pendingAutoIntake,
     handleProjectCreatedWithIntake,
     clearPendingAutoIntake,
+    clearImportedProjectAnalysisPrompt,
   };
 }
