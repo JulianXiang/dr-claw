@@ -1,15 +1,17 @@
 ---
 name: gemini-deep-research
 description: |
-  Perform complex, long-running research tasks using Gemini Deep Research Agent.
-  Use when: asked to research topics requiring multi-source synthesis, competitive analysis,
-  market research, literature review, or comprehensive technical investigations that benefit
-  from systematic web search and analysis. Invokes Google's deep-research agent to autonomously
-  search the web, gather evidence, and produce a structured markdown report.
+  Perform deep, multi-source research using Google Gemini's Deep Research Agent.
+  Use this skill whenever the user asks for comprehensive research, literature reviews,
+  competitive analysis, market research, technology surveys, or any investigation that
+  requires synthesizing information from many web sources. Also trigger when the user
+  says "deep research", "research this thoroughly", "do a comprehensive study on",
+  or wants a structured report with evidence gathered from across the web —
+  even if they don't mention Gemini by name.
 license: MIT
 metadata:
   author: clawdbot
-  version: "1.0.0"
+  version: "1.1.0"
   requires:
     env:
       - GEMINI_API_KEY
@@ -17,74 +19,74 @@ metadata:
 
 # Gemini Deep Research
 
-Use Google Gemini's Deep Research Agent to perform complex, long-running context gathering and synthesis tasks. The agent autonomously breaks down your query, searches the web, and synthesizes findings into a comprehensive report.
+Google Gemini's Deep Research Agent autonomously breaks down complex queries, searches the web systematically, and produces structured markdown reports with citations. It handles the kind of multi-source synthesis that would take a human hours of browsing.
 
 ## Prerequisites
 
-- `GEMINI_API_KEY` environment variable (obtain from [Google AI Studio](https://aistudio.google.com/apikey))
-- Python 3.8+ with `requests` library
-- **Note**: Requires a direct Gemini API key — OAuth tokens are not supported.
+- `GEMINI_API_KEY` environment variable must be set (obtain from [Google AI Studio](https://aistudio.google.com/apikey))
+- Python 3.8+ with the `requests` library installed
+- Requires a direct Gemini API key — OAuth tokens are not supported
 
-## When to Use
+## How to Run the Script
 
-- Comprehensive literature or market research
-- Competitive landscape analysis
-- Technical deep dives requiring multi-source synthesis
-- Any research task that benefits from systematic web search
-- When you need a structured report with evidence from multiple sources
-
-## How It Works
-
-The Deep Research agent:
-1. Breaks down complex queries into sub-questions
-2. Searches the web systematically for each sub-question
-3. Synthesizes findings into a comprehensive markdown report
-4. Provides streaming progress updates during execution
-
-## Usage
-
-### Basic Research
+The script is at `scripts/deep_research.py` **relative to this skill's directory** (i.e., the directory containing this SKILL.md). Resolve the full path from the skill's location before running.
 
 ```bash
-scripts/deep_research.py --query "Research the current state of quantum error correction" --stream
+python3 <this-skill-directory>/scripts/deep_research.py \
+  --query "<research query>" \
+  --stream \
+  --output-dir ./reports
 ```
 
-### Custom Output Format
+### Key flags
 
+| Flag | Purpose | Default |
+|------|---------|---------|
+| `--query` | **(required)** The research question | — |
+| `--stream` | Print progress updates while waiting | off |
+| `--output-dir` | Where to save the report files | current dir |
+| `--format` | Custom output structure (see example below) | free-form |
+| `--file-search-store` | Gemini file-search store name | none |
+| `--api-key` | Override `GEMINI_API_KEY` env var | env var |
+
+### Before running
+
+1. Confirm `GEMINI_API_KEY` is available in the environment. If not, check `.env` or `.claude/settings.local.json` and advise the user.
+2. Ensure `requests` is installed: `python3 -c "import requests"`. If missing, install it: `pip3 install requests`.
+
+### Example commands
+
+**Basic research:**
 ```bash
-scripts/deep_research.py --query "Competitive landscape of EV batteries" \
-  --format "1. Executive Summary\n2. Key Players (data table)\n3. Technology Comparison\n4. Supply Chain Risks"
+python3 <this-skill-directory>/scripts/deep_research.py \
+  --query "Current state of quantum error correction techniques" \
+  --stream --output-dir ./reports
 ```
 
-### With File Search (optional)
-
+**Custom output format:**
 ```bash
-scripts/deep_research.py --query "Compare our fiscal year report against current public web news" \
-  --file-search-store "fileSearchStores/my-store-name"
-```
-
-### Specify Output Directory
-
-```bash
-scripts/deep_research.py --query "Your research topic" --output-dir ./reports --stream
+python3 <this-skill-directory>/scripts/deep_research.py \
+  --query "Competitive landscape of EV batteries" \
+  --format "1. Executive Summary\n2. Key Players (data table)\n3. Technology Comparison\n4. Supply Chain Risks" \
+  --stream --output-dir ./reports
 ```
 
 ## Output
 
-Results are saved as timestamped files in the output directory:
-- `deep-research-YYYY-MM-DD-HH-MM-SS.md` — Final report in markdown
-- `deep-research-YYYY-MM-DD-HH-MM-SS.json` — Full interaction metadata
+The script produces two timestamped files in the output directory:
+- `deep-research-YYYY-MM-DD-HH-MM-SS.md` — the final markdown report
+- `deep-research-YYYY-MM-DD-HH-MM-SS.json` — full interaction metadata
 
-The report is also printed to stdout for immediate use.
+The report is also printed to stdout so you can capture it directly.
+
+## Execution Notes
+
+- This is a **long-running** task — it typically takes 2–10 minutes depending on query complexity. Use `--stream` so the user can see progress.
+- Always run with a reasonable timeout (at least 600000ms / 10 minutes) when using the Bash tool.
+- After the script finishes, read and present the generated `.md` report to the user. Summarize key findings and point them to the full report file.
 
 ## API Details
 
 - **Endpoint**: `https://generativelanguage.googleapis.com/v1beta/interactions`
 - **Agent model**: `deep-research-pro-preview-12-2025`
 - **Auth**: `x-goog-api-key` header
-
-## Limitations
-
-- Long-running tasks (minutes to tens of minutes depending on complexity)
-- May incur API costs depending on your Google AI quota
-- Results depend on web content available at query time
