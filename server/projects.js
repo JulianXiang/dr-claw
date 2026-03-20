@@ -68,7 +68,7 @@ import { open } from 'sqlite';
 import os from 'os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const VIBELAB_SKILLS_DIR = path.join(__dirname, '..', 'skills');
+const DRCLAW_SKILLS_DIR = path.join(__dirname, '..', 'skills');
 const PROJECT_SKILL_FOLDERS = ['.claude', '.agents', '.cursor', '.gemini'];
 const PROJECT_PIPELINE_FOLDERS = ['Survey', 'Ideation', 'Experiment', 'Publication', 'Promotion'];
 const LEGACY_DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'vibelab');
@@ -1637,7 +1637,7 @@ async function collectSkillDirs(baseDir) {
  */
 function getCoreSkillNames() {
   try {
-    const mappingPath = path.join(VIBELAB_SKILLS_DIR, 'skill-tag-mapping.json');
+    const mappingPath = path.join(DRCLAW_SKILLS_DIR, 'skill-tag-mapping.json');
     const raw = fsSync.readFileSync(mappingPath, 'utf8');
     const mapping = JSON.parse(raw);
     const names = new Set(mapping.platformNativeSkills || []);
@@ -1803,10 +1803,10 @@ async function ensureProjectSkillLinks(projectPath) {
   }
 
   try {
-    await fs.access(VIBELAB_SKILLS_DIR);
+    await fs.access(DRCLAW_SKILLS_DIR);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      console.warn('[projects] Dr. Claw skills dir not found, skipping skill symlinks:', VIBELAB_SKILLS_DIR);
+      console.warn('[projects] Dr. Claw skills dir not found, skipping skill symlinks:', DRCLAW_SKILLS_DIR);
       return;
     }
     console.error('[projects] Cannot access Dr. Claw skills dir:', err.message);
@@ -1814,7 +1814,7 @@ async function ensureProjectSkillLinks(projectPath) {
   }
 
   try {
-    const skillDirs = await collectSkillDirs(VIBELAB_SKILLS_DIR);
+    const skillDirs = await collectSkillDirs(DRCLAW_SKILLS_DIR);
     if (skillDirs.length === 0) return;
 
     // Warn about name collisions
@@ -1875,7 +1875,7 @@ async function ensureProjectSkillLinks(projectPath) {
 
       // Symlink JSON config files from Dr. Claw root into each project skills folder
       for (const jsonFile of ['skill-tag-mapping.json', 'stage-skill-map.json']) {
-        const srcJson = path.join(VIBELAB_SKILLS_DIR, jsonFile);
+        const srcJson = path.join(DRCLAW_SKILLS_DIR, jsonFile);
         const destJson = path.join(skillsSubdir, jsonFile);
         try {
           await fs.access(srcJson);

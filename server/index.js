@@ -447,18 +447,18 @@ const expandWorkspacePath = async (inputPath) => {
 // Browse filesystem endpoint for project suggestions - uses existing getFileTree
 app.get('/api/browse-filesystem', authenticateToken, async (req, res) => {
     try {
-        const { path: dirPath } = req.query;
+        const { path: dirPath, showHidden: showHiddenQuery } = req.query;
+        const showHidden = showHiddenQuery === 'true';
 
-        console.log('[API] Browse filesystem request for path:', dirPath);
-        const defaultRoot = await getWorkspacesRoot();
-        console.log('[API] Workspace root is:', defaultRoot);
-        // Default to workspace root if no path provided
-        let targetPath = dirPath ? await expandWorkspacePath(dirPath) : defaultRoot;
+        console.log('[API] Browse filesystem request for path:', dirPath, 'showHidden:', showHidden);
+        const homeDir = os.homedir();
+        // Default to home directory if no path provided
+        let targetPath = dirPath ? await expandWorkspacePath(dirPath) : homeDir;
 
         // Resolve and normalize the path
         targetPath = path.resolve(targetPath);
 
-        // Security check - ensure path is within allowed workspace root
+        // Security check - ensure path is valid
         const validation = await validateWorkspacePath(targetPath);
         if (!validation.valid) {
             return res.status(403).json({ error: validation.error });
@@ -478,7 +478,8 @@ app.get('/api/browse-filesystem', authenticateToken, async (req, res) => {
         }
 
         // Use existing getFileTree function with shallow depth (only direct children)
-        const fileTree = await getFileTree(resolvedPath, 1, 0, false); // maxDepth=1, showHidden=false
+        // For browsing, we use a more permissive version that doesn't skip node_modules etc.
+        const fileTree = await getFileTree(resolvedPath, 1, 0, showHidden, true); // maxDepth=1, showHidden, isBrowsing=true
 
         // Filter only directories and format for suggestions
         const directories = fileTree
@@ -498,14 +499,15 @@ app.get('/api/browse-filesystem', authenticateToken, async (req, res) => {
 
         // Add common directories if browsing home directory
         const suggestions = [];
-        let resolvedWorkspaceRoot = defaultRoot;
+        let resolvedHomeDir = homeDir;
         try {
-            resolvedWorkspaceRoot = await fsPromises.realpath(defaultRoot);
+            resolvedHomeDir = await fs.promises.realpath(homeDir);
         } catch (error) {
-            // Use default root as-is if realpath fails
+            // Use home dir as-is if realpath fails
         }
-        if (resolvedPath === resolvedWorkspaceRoot) {
-            const commonDirs = ['Desktop', 'Documents', 'Projects', 'Development', 'Dev', 'Code', 'workspace'];
+
+        if (resolvedPath === resolvedHomeDir) {
+            const commonDirs = ['Desktop', 'Documents', 'Downloads', 'Projects', 'Development', 'Dev', 'Code', 'workspace', 'vibelab'];
             const existingCommon = directories.filter(dir => commonDirs.includes(dir.name));
             const otherDirs = directories.filter(dir => !commonDirs.includes(dir.name));
 
@@ -770,21 +772,24 @@ app.delete('/api/projects/:projectName', authenticateToken, async (req, res) => 
 });
 
 // Create project endpoint
-app.post('/api/projects/create', authenticateToken, async (req, res) => {
+async function handleCreateProject(req, res) {
     try {
-        const { path: projectPath } = req.body;
+        const { path: projectPath, displayName = null } = req.body;
 
         if (!projectPath || !projectPath.trim()) {
             return res.status(400).json({ error: 'Project path is required' });
         }
 
-        const project = await addProjectManually(projectPath.trim(), null, req.user?.id);
+        const project = await addProjectManually(projectPath.trim(), displayName, req.user?.id);
         res.json({ success: true, project });
     } catch (error) {
         console.error('Error creating project:', error);
         res.status(500).json({ error: error.message });
     }
-});
+}
+
+app.post('/api/projects/create', authenticateToken, handleCreateProject);
+app.post('/api/projects', authenticateToken, handleCreateProject);
 
 // Read file content endpoint
 app.get('/api/projects/:projectName/file', authenticateToken, async (req, res) => {
@@ -2693,7 +2698,7 @@ async function resolveProjectFilePath(projectRoot, inputPath) {
     return { resolved: direct };
 }
 
-async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden = true) {
+async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden = true, isBrowsing = false) {
     // Using fsPromises from import
     const items = [];
 
@@ -2704,13 +2709,15 @@ async function getFileTree(dirPath, maxDepth = 3, currentDepth = 0, showHidden =
             // Debug: log all entries including hidden files
             if (!showHidden && entry.name.startsWith('.')) continue;
 
-            // Skip heavy build directories and VCS directories
-            if (entry.name === 'node_modules' ||
+            // Skip heavy build directories and VCS directories unless we are browsing
+            if (!isBrowsing && (
+                entry.name === 'node_modules' ||
                 entry.name === 'dist' ||
                 entry.name === 'build' ||
                 entry.name === '.git' ||
                 entry.name === '.svn' ||
-                entry.name === '.hg') continue;
+                entry.name === '.hg'
+            )) continue;
 
             const itemPath = path.join(dirPath, entry.name);
             let isDirectory = entry.isDirectory();
