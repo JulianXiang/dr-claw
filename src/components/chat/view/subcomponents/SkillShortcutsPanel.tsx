@@ -20,7 +20,7 @@ const CATEGORIES: SkillCategory[] = [
   { key: 'experiment', icon: '🧪', skills: ['inno-experiment-dev', 'inno-experiment-analysis', 'bioinformatics-init-analysis', 'inno-prepare-resources'] },
   { key: 'paperWriting', icon: '✏️', skills: ['inno-paper-writing', 'scientific-writing', 'ml-paper-writing', 'inno-figure-gen', 'inno-humanizer'] },
   { key: 'paperReview', icon: '📋', skills: ['inno-paper-reviewer', 'inno-reference-audit', 'inno-rclone-to-overleaf'] },
-  { key: 'grantWriting', icon: '📝', skills: ['research-grants'] },
+  { key: 'grantWriting', icon: '📝', skills: ['inno-grant-proposal'] },
   { key: 'promotion', icon: '🎬', skills: ['making-academic-presentations'] },
 ];
 

@@ -323,6 +323,10 @@
         "title": "Review a draft",
         "description": "Run a reviewer-style check for methods, evidence, references, and writing quality."
       },
+      "grantProposal": {
+        "title": "Grant proposal",
+        "description": "Plan, draft, revise, or resubmit a faculty funding proposal for NSF, NIH, DOE, DARPA, NASA, or NSFC."
+      },
       "presentationPromotion": {
         "title": "Presentation materials",
         "description": "Turn the paper into slides, narration scripts, TTS audio, and a demo video."

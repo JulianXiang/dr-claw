@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-03-11T04:50:01.412Z",
+  "generatedAt": "2026-03-20T05:23:15.888Z",
   "schema": "skills-taxonomy-v2",
-  "totalSkills": 108,
+  "totalSkills": 111,
   "skills": [
     {
       "name": "academic-researcher",
@@ -42,10 +42,10 @@
       },
       "owner": "awesome-llm-apps",
       "relatedSkills": [
+        "paper-finder",
+        "research-news",
         "gemini-deep-research",
-        "inno-code-survey",
-        "inno-deep-research",
-        "biorxiv-database"
+        "inno-code-survey"
       ]
     },
     {
@@ -1376,6 +1376,7 @@
       "owner": "clawdbot",
       "relatedSkills": [
         "inno-deep-research",
+        "research-news",
         "inno-code-survey",
         "inno-pipeline-planner"
       ]
@@ -1783,7 +1784,7 @@
         "gemini-deep-research",
         "inno-code-survey",
         "academic-researcher",
-        "biorxiv-database"
+        "research-news"
       ]
     },
     {
@@ -1869,6 +1870,7 @@
       "relatedSkills": [
         "inno-pipeline-planner",
         "mamba-architecture",
+        "inno-grant-proposal",
         "inno-idea-eval"
       ]
     },
@@ -1911,8 +1913,53 @@
       "relatedSkills": [
         "inno-humanizer",
         "inno-paper-writing",
-        "inno-rclone-to-overleaf",
-        "research-grants"
+        "inno-grant-proposal",
+        "inno-rclone-to-overleaf"
+      ]
+    },
+    {
+      "name": "inno-grant-proposal",
+      "primaryIntent": "writing",
+      "intents": [
+        "writing",
+        "research"
+      ],
+      "capabilities": [
+        "visualization-reporting",
+        "research-planning"
+      ],
+      "domains": [
+        "general"
+      ],
+      "keywords": [
+        "inno-grant-proposal",
+        "grant writing",
+        "visualization-reporting",
+        "research-planning",
+        "inno",
+        "grant",
+        "proposal",
+        "help",
+        "professors",
+        "researchers",
+        "write",
+        "revise"
+      ],
+      "source": "dr-claw",
+      "status": "verified",
+      "summary": "Help professors and researchers write, revise, adapt, and polish grant proposals for US agencies (NSF, NIH, DOE, DARPA, NASA) and Chinese agencies (NSFC 国自然). Use this skill whenever the user mentions grants, proposals, funding application...",
+      "legacy": {
+        "dirPath": "inno-grant-proposal",
+        "skillFile": "skills/inno-grant-proposal/SKILL.md",
+        "topLevelGroup": "Standalone",
+        "collection": "Grant Writing",
+        "domain": "general"
+      },
+      "relatedSkills": [
+        "inno-paper-writing",
+        "scientific-writing",
+        "inno-figure-gen",
+        "inno-humanizer"
       ]
     },
     {
@@ -1954,8 +2001,8 @@
       "relatedSkills": [
         "inno-figure-gen",
         "inno-paper-writing",
-        "inno-rclone-to-overleaf",
-        "research-grants"
+        "inno-grant-proposal",
+        "inno-rclone-to-overleaf"
       ]
     },
     {
@@ -2043,7 +2090,7 @@
         "inno-idea-eval",
         "brainstorming-research-ideas",
         "creative-thinking-for-research",
-        "inno-pipeline-planner"
+        "inno-grant-proposal"
       ]
     },
     {
@@ -2129,7 +2176,7 @@
       },
       "relatedSkills": [
         "scientific-writing",
-        "research-grants",
+        "inno-grant-proposal",
         "inno-figure-gen",
         "inno-humanizer"
       ]
@@ -2174,6 +2221,7 @@
       },
       "relatedSkills": [
         "gemini-deep-research",
+        "research-news",
         "inno-code-survey",
         "inno-deep-research"
       ]
@@ -2263,9 +2311,9 @@
       },
       "relatedSkills": [
         "inno-figure-gen",
+        "inno-grant-proposal",
         "inno-humanizer",
-        "inno-paper-writing",
-        "making-academic-presentations"
+        "inno-paper-writing"
       ]
     },
     {
@@ -2351,9 +2399,9 @@
       },
       "relatedSkills": [
         "inno-figure-gen",
+        "inno-grant-proposal",
         "inno-humanizer",
-        "inno-paper-writing",
-        "inno-rclone-to-overleaf"
+        "inno-paper-writing"
       ]
     },
     {
@@ -2578,8 +2626,8 @@
       },
       "owner": "Orchestra Research",
       "relatedSkills": [
+        "inno-grant-proposal",
         "inno-paper-writing",
-        "research-grants",
         "scientific-writing",
         "inno-figure-gen"
       ]
@@ -3663,6 +3711,136 @@
       ]
     },
     {
+      "name": "paper-analyzer",
+      "primaryIntent": "research",
+      "intents": [
+        "research"
+      ],
+      "capabilities": [
+        "evaluation-benchmarking"
+      ],
+      "domains": [
+        "cs-ai"
+      ],
+      "keywords": [
+        "paper-analyzer",
+        "paper analysis",
+        "evaluation-benchmarking",
+        "cs-ai",
+        "paper",
+        "analyzer",
+        "deep",
+        "analysis",
+        "single",
+        "generate",
+        "structured",
+        "notes"
+      ],
+      "source": "imported",
+      "status": "verified",
+      "summary": "Deep analysis of a single paper — generate structured notes with figures, evaluation, and knowledge graph updates",
+      "legacy": {
+        "dirPath": "paper-analyzer",
+        "skillFile": "skills/paper-analyzer/SKILL.md",
+        "topLevelGroup": "Standalone",
+        "collection": "Paper Analysis",
+        "domain": "cs"
+      },
+      "relatedSkills": [
+        "paper-finder",
+        "paper-image-extractor",
+        "academic-researcher",
+        "research-news"
+      ]
+    },
+    {
+      "name": "paper-finder",
+      "primaryIntent": "research",
+      "intents": [
+        "research"
+      ],
+      "capabilities": [
+        "search-retrieval"
+      ],
+      "domains": [
+        "cs-ai"
+      ],
+      "keywords": [
+        "paper-finder",
+        "paper search",
+        "search-retrieval",
+        "cs-ai",
+        "paper",
+        "finder",
+        "search",
+        "existing",
+        "notes",
+        "by",
+        "title",
+        "author"
+      ],
+      "source": "imported",
+      "status": "verified",
+      "summary": "Search existing paper notes by title, author, keyword, or research domain",
+      "legacy": {
+        "dirPath": "paper-finder",
+        "skillFile": "skills/paper-finder/SKILL.md",
+        "topLevelGroup": "Standalone",
+        "collection": "Paper Search",
+        "domain": "cs"
+      },
+      "relatedSkills": [
+        "academic-researcher",
+        "research-news",
+        "biorxiv-database",
+        "gemini-deep-research"
+      ]
+    },
+    {
+      "name": "paper-image-extractor",
+      "primaryIntent": "research",
+      "intents": [
+        "research"
+      ],
+      "capabilities": [
+        "multimodal"
+      ],
+      "domains": [
+        "cs-ai",
+        "vision"
+      ],
+      "keywords": [
+        "paper-image-extractor",
+        "image extraction",
+        "multimodal",
+        "cs-ai",
+        "vision",
+        "paper",
+        "image",
+        "extractor",
+        "extract",
+        "figures",
+        "from",
+        "papers"
+      ],
+      "source": "imported",
+      "status": "verified",
+      "summary": "Extract figures from papers — prioritizes arXiv source package for high-quality images",
+      "legacy": {
+        "dirPath": "paper-image-extractor",
+        "skillFile": "skills/paper-image-extractor/SKILL.md",
+        "topLevelGroup": "Standalone",
+        "collection": "Image Extraction",
+        "domain": "cs"
+      },
+      "relatedSkills": [
+        "paper-analyzer",
+        "paper-finder",
+        "sentence-transformers",
+        "academic-researcher"
+      ]
+    },
+    {
       "name": "grpo-rl-training",
       "primaryIntent": "training",
       "intents": [
@@ -4460,51 +4638,6 @@
       ]
     },
     {
-      "name": "research-grants",
-      "primaryIntent": "writing",
-      "intents": [
-        "writing",
-        "research"
-      ],
-      "capabilities": [
-        "visualization-reporting",
-        "research-planning"
-      ],
-      "domains": [
-        "general"
-      ],
-      "keywords": [
-        "research-grants",
-        "paper writing",
-        "visualization-reporting",
-        "research-planning",
-        "research",
-        "grants",
-        "write",
-        "competitive",
-        "proposals",
-        "nsf",
-        "nih",
-        "doe"
-      ],
-      "source": "imported",
-      "status": "verified",
-      "summary": "Write competitive research proposals for NSF, NIH, DOE, and DARPA. Agency-specific formatting, review criteria, budget preparation, broader impacts, significance statements, innovation narratives, and compliance with submission requirement...",
-      "legacy": {
-        "dirPath": "research-grants",
-        "skillFile": "skills/research-grants/SKILL.md",
-        "topLevelGroup": "Standalone",
-        "collection": "Paper Writing",
-        "domain": "cs"
-      },
-      "relatedSkills": [
-        "inno-paper-writing",
-        "scientific-writing",
-        "inno-figure-gen",
-        "inno-humanizer"
-      ]
-    },
-    {
       "name": "brainstorming-research-ideas",
       "primaryIntent": "ideation",
       "intents": [
@@ -4546,7 +4679,7 @@
         "creative-thinking-for-research",
         "inno-idea-generation",
         "inno-idea-eval",
-        "inno-pipeline-planner"
+        "inno-grant-proposal"
       ]
     },
     {
@@ -4591,7 +4724,51 @@
         "brainstorming-research-ideas",
         "inno-idea-generation",
         "inno-idea-eval",
-        "inno-pipeline-planner"
+        "inno-grant-proposal"
+      ]
+    },
+    {
+      "name": "research-news",
+      "primaryIntent": "research",
+      "intents": [
+        "research"
+      ],
+      "capabilities": [
+        "agent-workflow",
+        "search-retrieval"
+      ],
+      "domains": [
+        "cs-ai"
+      ],
+      "keywords": [
+        "research-news",
+        "paper discovery",
+        "agent-workflow",
+        "search-retrieval",
+        "cs-ai",
+        "research",
+        "news",
+        "daily",
+        "paper",
+        "recommendation",
+        "workflow",
+        "search"
+      ],
+      "source": "imported",
+      "status": "verified",
+      "summary": "Daily paper recommendation workflow — search arXiv and Semantic Scholar, score and recommend papers",
+      "legacy": {
+        "dirPath": "research-news",
+        "skillFile": "skills/research-news/SKILL.md",
+        "topLevelGroup": "Standalone",
+        "collection": "Paper Discovery",
+        "domain": "cs"
+      },
+      "relatedSkills": [
+        "gemini-deep-research",
+        "academic-researcher",
+        "paper-finder",
+        "inno-deep-research"
       ]
     },
     {
@@ -4814,7 +4991,7 @@
       },
       "relatedSkills": [
         "inno-paper-writing",
-        "research-grants",
+        "inno-grant-proposal",
         "inno-figure-gen",
         "inno-humanizer"
       ]

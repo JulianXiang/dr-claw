@@ -507,8 +507,15 @@ function inferDomains(skill, override) {
 }
 
 function inferSource(skill) {
+  const explicitSource = normalizeKey(skill.frontmatter?.source);
+  if (explicitSource === 'vibelab' || explicitSource === 'dr-claw' || explicitSource === 'dr. claw') {
+    return 'dr-claw';
+  }
+
   const normalizedSource = normalizeKey(skill.source);
-  return normalizedSource === 'vibelab' || normalizedSource === 'dr-claw' ? 'dr-claw' : 'imported';
+  return normalizedSource === 'vibelab' || normalizedSource === 'dr-claw' || normalizedSource === 'dr. claw'
+    ? 'dr-claw'
+    : 'imported';
 }
 
 function inferStatus(skill, source) {
@@ -670,7 +677,7 @@ async function main() {
         key: `domain:${normalizeKey(domainLabel)}`,
         label: domainLabel,
       },
-      source: isPlatformNative ? 'Dr. Claw' : 'Imported',
+      source: isPlatformNative ? 'dr-claw' : 'imported',
       summary,
       fullDescription,
       tags: {

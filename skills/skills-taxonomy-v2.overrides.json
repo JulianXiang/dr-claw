@@ -77,6 +77,12 @@
     "capabilities": ["visualization-reporting"],
     "domains": ["general"]
   },
+  "inno-grant-proposal": {
+    "primaryIntent": "writing",
+    "intents": ["writing", "research"],
+    "capabilities": ["visualization-reporting", "research-planning"],
+    "domains": ["general"]
+  },
   "inno-humanizer": {
     "primaryIntent": "writing",
     "intents": ["writing"],
@@ -160,12 +166,6 @@
     "intents": ["deployment", "evaluation"],
     "capabilities": ["safety-alignment"],
     "domains": ["cs-ai"]
-  },
-  "research-grants": {
-    "primaryIntent": "writing",
-    "intents": ["writing", "research"],
-    "capabilities": ["visualization-reporting", "research-planning"],
-    "domains": ["general"]
   },
   "scientific-writing": {
     "primaryIntent": "writing",

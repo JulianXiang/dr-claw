@@ -323,6 +323,10 @@
         "title": "원고 리뷰",
         "description": "리뷰어 관점에서 방법, 근거, 인용, 문장 품질을 점검합니다."
       },
+      "grantProposal": {
+        "title": "연구비 제안서",
+        "description": "NSF, NIH, DOE, DARPA, NASA 또는 NSFC 대상 연구비 제안서를 기획, 초안 작성, 수정, 재제출합니다."
+      },
       "presentationPromotion": {
         "title": "발표 자료",
         "description": "논문 내용을 바탕으로 슬라이드, 내레이션 스크립트, TTS 오디오, 데모 영상을 만듭니다."

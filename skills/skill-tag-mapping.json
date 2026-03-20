@@ -13,6 +13,7 @@
     "inno-paper-reviewer": { "zh": "阶段: 论文评审", "en": "Stage: Paper Review", "ko": "단계: 논문 심사" },
     "inno-reference-audit": { "zh": "阶段: 论文评审", "en": "Stage: Paper Review", "ko": "단계: 논문 심사" },
     "inno-humanizer": { "zh": "阶段: 论文撰写", "en": "Stage: Paper Writing", "ko": "단계: 논문 작성" },
+    "inno-grant-proposal": { "zh": "阶段: 基金撰写", "en": "Stage: Grant Writing", "ko": "단계: 연구비 작성" },
     "inno-rclone-to-overleaf": { "zh": "阶段: 发布同步", "en": "Stage: Publication Sync", "ko": "단계: 배포 동기화" },
     "making-academic-presentations": { "zh": "阶段: 成果推广", "en": "Stage: Promotion", "ko": "단계: 성과 홍보" },
     "inno-figure-gen": { "zh": "阶段: 论文撰写", "en": "Stage: Paper Writing", "ko": "단계: 논문 작성" },
@@ -21,7 +22,6 @@
     "scientific-writing": { "zh": "阶段: 论文撰写", "en": "Stage: Paper Writing", "ko": "단계: 논문 작성" },
     "academic-researcher": { "zh": "阶段: 调研", "en": "Stage: Survey", "ko": "단계: 조사" },
     "gemini-deep-research": { "zh": "阶段: 调研", "en": "Stage: Survey", "ko": "단계: 조사" },
-    "research-grants": { "zh": "阶段: 论文撰写", "en": "Stage: Paper Writing", "ko": "단계: 논문 작성" },
 
     "accelerate": { "zh": "类别: 训练与调优", "en": "Category: Training & Tuning", "ko": "카테고리: 훈련 및 튜닝" },
     "deepspeed": { "zh": "类别: 训练与调优", "en": "Category: Training & Tuning", "ko": "카테고리: 훈련 및 튜닝" },
@@ -187,7 +187,7 @@
     "biorxiv-database": { "zh": "领域: q-bio", "en": "Domain: q-bio", "ko": "영역: q-bio" },
     "scientific-writing": { "zh": "领域: cs", "en": "Domain: cs", "ko": "영역: cs" },
     "academic-researcher": { "zh": "领域: cs", "en": "Domain: cs", "ko": "영역: cs" },
-    "research-grants": { "zh": "领域: cs", "en": "Domain: cs", "ko": "영역: cs" },
+    "inno-grant-proposal": { "zh": "领域: general", "en": "Domain: general", "ko": "영역: general" },
 
     "dspy": { "zh": "领域: cs", "en": "Domain: cs", "ko": "영역: cs" },
     "guidance": { "zh": "领域: cs", "en": "Domain: cs", "ko": "영역: cs" },
@@ -230,6 +230,7 @@
     "inno-experiment-analysis",
     "inno-experiment-dev",
     "inno-figure-gen",
+    "inno-grant-proposal",
     "inno-humanizer",
     "inno-idea-eval",
     "inno-idea-generation",

@@ -88,7 +88,7 @@
       "inno-rclone-to-overleaf",
       "scientific-writing",
       "ml-paper-writing",
-      "research-grants"
+      "inno-grant-proposal"
     ],
     "byTaskType": {
       "writing": [
@@ -97,7 +97,7 @@
         "inno-humanizer",
         "scientific-writing",
         "ml-paper-writing",
-        "research-grants"
+        "inno-grant-proposal"
       ],
       "analysis": [
         "inno-paper-reviewer",

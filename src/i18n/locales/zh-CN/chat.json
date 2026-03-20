@@ -323,6 +323,10 @@
         "title": "审阅稿件",
         "description": "以审稿视角检查方法、证据、引用与写作质量。"
       },
+      "grantProposal": {
+        "title": "基金申请",
+        "description": "为 NSF、NIH、DOE、DARPA、NASA 或 NSFC 的基金申请做规划、起草、修改或重投。"
+      },
       "presentationPromotion": {
         "title": "汇报材料",
         "description": "基于论文内容生成演示文稿、旁白脚本、音频与演示视频。"

@@ -57,6 +57,13 @@ export const GUIDED_PROMPT_SCENARIOS: GuidedPromptScenario[] = [
     skills: ['inno-paper-reviewer', 'inno-reference-audit', 'inno-humanizer'],
   },
   {
+    id: 'grant-proposal',
+    icon: '📝',
+    titleKey: 'guidedStarter.scenarios.grantProposal.title',
+    descriptionKey: 'guidedStarter.scenarios.grantProposal.description',
+    skills: ['inno-grant-proposal'],
+  },
+  {
     id: 'presentation-promotion',
     icon: '🎬',
     titleKey: 'guidedStarter.scenarios.presentationPromotion.title',
