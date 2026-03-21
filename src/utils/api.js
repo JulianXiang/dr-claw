@@ -339,7 +339,10 @@ export const api = {
     /** Poll search progress logs for a source. */
     getLogs: (source) => authenticatedFetch(`/api/news/logs/${source}`),
     /** Trigger xhs login (returns JSON with success, nickname, logs). */
-    xhsLogin: () => authenticatedFetch('/api/news/xhs-login', { method: 'POST' }),
+    xhsLogin: (options = {}) => authenticatedFetch('/api/news/xhs-login', {
+      method: 'POST',
+      body: JSON.stringify(options),
+    }),
   },
 
   // Generic GET method for any endpoint
