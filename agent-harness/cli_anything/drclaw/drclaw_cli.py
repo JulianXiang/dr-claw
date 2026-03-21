@@ -63,11 +63,13 @@ import os
 import shutil
 import subprocess
 import sys
+import base64
+import mimetypes
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import click
 import requests
@@ -124,6 +126,12 @@ _TRANSLATIONS = {
         "session": "Session",
         "reply": "Reply",
         "empty": "(empty)",
+        "suggest_answer_questions": "Suggested reply: answer the clarifying questions directly — confirm goals, constraints, deliverables, and next steps.",
+        "suggest_continue_task": "Suggested reply: let it continue the current task and report blockers, next checkpoint, and where it needs your input.",
+        "suggest_unblock": "Suggested reply: ask it to describe the current blocker, missing inputs, and the next step after unblocking.",
+        "suggest_summarize_progress": "Suggested reply: summarize current experiment progress, completed parts, risks, and plan for the next phase.",
+        "suggest_converge_plan": "Suggested reply: converge the current discussion into a research brief, phase breakdown, and draft tasks.",
+        "suggest_start_next": "Suggested reply: start the next pending task and report the first verifiable deliverable.",
     },
     "zh": {
         "status": "状态",
@@ -141,6 +149,12 @@ _TRANSLATIONS = {
         "session": "会话",
         "reply": "回复",
         "empty": "(空)",
+        "suggest_answer_questions": "建议回复：直接回答它刚刚提出的澄清问题，确认目标、约束、输出物和下一步。",
+        "suggest_continue_task": "建议回复：让它继续执行当前任务，并汇报 blocker、下一检查点和需要你的输入。",
+        "suggest_unblock": "建议回复：让它说明当前 blocker、缺少的输入，以及解除阻塞后的下一步。",
+        "suggest_summarize_progress": "建议回复：请总结当前实验进展、已完成部分、风险和下一阶段计划。",
+        "suggest_converge_plan": "建议回复：请把当前讨论收敛成 research brief、阶段拆分和 draft tasks。",
+        "suggest_start_next": "建议回复：从下一个 pending 任务开始执行，并汇报第一个可验证产物。",
     },
 }
 
@@ -667,7 +681,7 @@ def _build_openclaw_report(
         if "T" in updated_at and "." in updated_at:
             try:
                 display_time = updated_at.split(".")[0].replace("T", " ")
-            except: pass
+            except Exception: pass
         lines.append(f"🕒 {click.style(ctx.t('updated_at'), bold=True)}: {click.style(display_time, fg='bright_black')}")
 
     return "\n".join(lines)
@@ -793,7 +807,7 @@ def _progress_brief(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _recommend_project_attention(payload: Dict[str, Any], waiting_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _recommend_project_attention(payload: Dict[str, Any], waiting_rows: List[Dict[str, Any]], lang: str = "en") -> Dict[str, Any]:
     counts = payload.get("counts") or {}
     latest = payload.get("latest_session") or {}
     waiting_for_project = [
@@ -801,6 +815,8 @@ def _recommend_project_attention(payload: Dict[str, Any], waiting_rows: List[Dic
         if row.get("project") == payload.get("project")
         or row.get("project_display_name") == payload.get("project_display_name")
     ]
+
+    t = lambda key: _TRANSLATIONS.get(lang, _TRANSLATIONS["en"]).get(key, key)
 
     priority = "low"
     action = "monitor"
@@ -815,29 +831,29 @@ def _recommend_project_attention(payload: Dict[str, Any], waiting_rows: List[Dic
         action = "reply"
         reason = f"Project has {len(waiting_for_project)} waiting session(s) that need input."
         if has_questions:
-            suggested_reply = "建议回复：直接回答它刚刚提出的澄清问题，确认目标、约束、输出物和下一步。"
+            suggested_reply = t("suggest_answer_questions")
         else:
-            suggested_reply = "建议回复：让它继续执行当前任务，并汇报 blocker、下一检查点和需要你的输入。"
+            suggested_reply = t("suggest_continue_task")
     elif counts.get("blocked", 0):
         priority = "high"
         action = "unblock"
         reason = f"Project has {counts.get('blocked', 0)} blocked task(s)."
-        suggested_reply = "建议回复：让它说明当前 blocker、缺少的输入，以及解除阻塞后的下一步。"
+        suggested_reply = t("suggest_unblock")
     elif counts.get("in_progress", 0):
         priority = "medium"
         action = "check_progress"
         reason = f"Project has {counts.get('in_progress', 0)} in-progress task(s)."
-        suggested_reply = "建议回复：请总结当前实验进展、已完成部分、风险和下一阶段计划。"
+        suggested_reply = t("suggest_summarize_progress")
     elif counts.get("total", 0) == 0 and latest:
         priority = "medium"
         action = "plan"
         reason = "Project has active discussion context but no formal task pipeline yet."
-        suggested_reply = "建议回复：请把当前讨论收敛成 research brief、阶段拆分和 draft tasks。"
+        suggested_reply = t("suggest_converge_plan")
     elif counts.get("pending", 0):
         priority = "medium"
         action = "start_next"
         reason = f"Project has {counts.get('pending', 0)} pending task(s) ready to start."
-        suggested_reply = "建议回复：从下一个 pending 任务开始执行，并汇报第一个可验证产物。"
+        suggested_reply = t("suggest_start_next")
 
     return {
         "project": payload.get("project"),
@@ -850,9 +866,9 @@ def _recommend_project_attention(payload: Dict[str, Any], waiting_rows: List[Dic
     }
 
 
-def _build_portfolio_digest(items: List[Dict[str, Any]], waiting_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _build_portfolio_digest(items: List[Dict[str, Any]], waiting_rows: List[Dict[str, Any]], lang: str = "en") -> Dict[str, Any]:
     briefs = [_progress_brief(item) for item in items]
-    recommendations = [_recommend_project_attention(item, waiting_rows) for item in items]
+    recommendations = [_recommend_project_attention(item, waiting_rows, lang=lang) for item in items]
     priority_rank = {"high": 0, "medium": 1, "low": 2}
     recommendations.sort(key=lambda row: (priority_rank.get(row.get("priority"), 9), str(row.get("project_display_name") or "")))
     return {
@@ -1233,9 +1249,6 @@ def projects_create(ctx: Context, workspace_path: str, display_name: Optional[st
     except Exception as exc:
         _handle_error(exc, ctx.json_mode)
 
-
-import base64
-import mimetypes
 
 def _process_attachments(attachments: List[str]) -> List[Dict[str, str]]:
     processed = []
@@ -1815,7 +1828,7 @@ def workflow_resume(
             session_id=session_id,
             timeout=timeout,
             permission_mode="bypassPermissions" if bypass_permissions else None,
-            images=images,
+            attachments=images,
         )
         payload = {
             "action": "resume",
@@ -2464,7 +2477,7 @@ def digest_portfolio(ctx: Context, force_json: bool, push_openclaw: bool, channe
                 items.append(_project_progress_payload(ctx, ref))
             except Exception:
                 continue
-        payload = _build_portfolio_digest(items, waiting_rows)
+        payload = _build_portfolio_digest(items, waiting_rows, lang=ctx.lang)
         if push_openclaw or channel:
             resolved_channel = _resolve_push_channel(channel)
             if not resolved_channel:

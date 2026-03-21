@@ -615,9 +615,12 @@ class TestCliHelpers(unittest.TestCase):
                 _resolve_session_provider(client, project, "missing-session")
 
     def test_maybe_send_openclaw_chat_notification_disabled(self):
+        from unittest.mock import MagicMock
         from cli_anything.drclaw.drclaw_cli import _maybe_send_openclaw_chat_notification
 
+        mock_ctx = MagicMock()
         result = _maybe_send_openclaw_chat_notification(
+            mock_ctx,
             {"project": "proj-1", "provider": "claude", "session_id": "sess-1", "reply": "done"},
             action="chat_reply",
             notify_openclaw=False,
@@ -628,8 +631,10 @@ class TestCliHelpers(unittest.TestCase):
         self.assertFalse(result["sent"])
 
     def test_maybe_send_openclaw_chat_notification_sends_message(self):
+        from unittest.mock import MagicMock
         from cli_anything.drclaw.drclaw_cli import _maybe_send_openclaw_chat_notification
 
+        mock_ctx = MagicMock()
         with patch(
             "cli_anything.drclaw.drclaw_cli._resolve_push_channel",
             return_value="feishu:test",
@@ -638,6 +643,7 @@ class TestCliHelpers(unittest.TestCase):
             return_value="ok",
         ) as send_message:
             result = _maybe_send_openclaw_chat_notification(
+                mock_ctx,
                 {
                     "project_display_name": "Project One",
                     "provider": "claude",
