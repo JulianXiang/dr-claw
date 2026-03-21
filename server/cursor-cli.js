@@ -10,6 +10,31 @@ const spawnFunction = process.platform === 'win32' ? crossSpawn : spawn;
 
 let activeCursorProcesses = new Map(); // Track active processes by session ID
 
+function encodeProjectPath(projectPath) {
+  return path.resolve(projectPath).replace(/[\\/:\s~_]/g, '-');
+}
+
+async function persistCursorSessionMetadata(sessionId, projectPath, sessionMode) {
+  if (!sessionId || !projectPath) {
+    return;
+  }
+
+  try {
+    const { sessionDb } = await import('./database/db.js');
+    sessionDb.upsertSession(
+      sessionId,
+      encodeProjectPath(projectPath),
+      'cursor',
+      'Untitled Session',
+      new Date().toISOString(),
+      0,
+      { sessionMode: sessionMode || 'research' },
+    );
+  } catch (error) {
+    console.warn('[Cursor] Failed to persist session metadata:', error.message);
+  }
+}
+
 async function spawnCursor(command, options = {}, ws) {
   return new Promise(async (resolve, reject) => {
     const { sessionId, projectPath, cwd, resume, toolsSettings, skipPermissions, model, images, sessionMode, env } = options;
@@ -118,6 +143,7 @@ async function spawnCursor(command, options = {}, ws) {
                   // Send session-created event only once for new sessions
                   if (!sessionId && !sessionCreatedSent) {
                     sessionCreatedSent = true;
+                    void persistCursorSessionMetadata(capturedSessionId, workingDir, sessionMode);
                     ws.send({
                       type: 'session-created',
                       sessionId: capturedSessionId,

@@ -14,9 +14,35 @@
  */
 
 import { Codex } from '@openai/codex-sdk';
+import path from 'path';
 
 // Track active sessions
 const activeCodexSessions = new Map();
+
+function encodeProjectPath(projectPath) {
+  return path.resolve(projectPath).replace(/[\\/:\s~_]/g, '-');
+}
+
+async function persistCodexSessionMetadata(sessionId, projectPath, sessionMode) {
+  if (!sessionId || !projectPath) {
+    return;
+  }
+
+  try {
+    const { sessionDb } = await import('./database/db.js');
+    sessionDb.upsertSession(
+      sessionId,
+      encodeProjectPath(projectPath),
+      'codex',
+      'Codex Session',
+      new Date().toISOString(),
+      0,
+      { sessionMode: sessionMode || 'research' },
+    );
+  } catch (error) {
+    console.warn('[Codex] Failed to persist session metadata:', error.message);
+  }
+}
 
 /**
  * Check if an agent_message item contains system prompt / instruction content
@@ -280,6 +306,9 @@ export async function queryCodex(command, options = {}, ws) {
     });
 
     // Send session created event
+    if (!sessionId) {
+      void persistCodexSessionMetadata(currentSessionId, workingDirectory, sessionMode);
+    }
     sendMessage(ws, {
       type: 'session-created',
       sessionId: currentSessionId,

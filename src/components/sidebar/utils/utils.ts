@@ -68,15 +68,15 @@ export const getSessionName = (session: SessionWithProvider, t: TFunction): stri
 };
 
 export const getSessionMode = (session: SessionWithProvider) => {
-  if (session.mode === 'workspace_qa') {
-    return 'workspace_qa';
-  }
-
   if (typeof window !== 'undefined' && session.__projectName) {
     const storedMode = window.localStorage.getItem(`session_mode_${session.__projectName}_${session.id}`);
     if (storedMode === 'workspace_qa') {
       return 'workspace_qa';
     }
+  }
+
+  if (session.mode === 'workspace_qa') {
+    return 'workspace_qa';
   }
 
   return 'research';
