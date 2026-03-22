@@ -23,6 +23,15 @@ const c = {
     dim: (text) => `${colors.dim}${text}${colors.reset}`,
 };
 
+const DEFAULT_STAGE_TAGS = [
+  { tagKey: 'survey', label: 'Survey', color: 'sky', sortOrder: 10 },
+  { tagKey: 'ideation', label: 'Ideation', color: 'amber', sortOrder: 20 },
+  { tagKey: 'experiment', label: 'Experiment', color: 'cyan', sortOrder: 30 },
+  { tagKey: 'publication', label: 'Publication', color: 'purple', sortOrder: 40 },
+  { tagKey: 'promotion', label: 'Promotion', color: 'pink', sortOrder: 50 },
+];
+const STAGE_TAG_DECISIONS_KEY = 'stageTagDecisions';
+
 // Use DATABASE_PATH environment variable if set, otherwise use default location
 const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'auth.db');
 const INIT_SQL_PATH = path.join(__dirname, 'init.sql');
@@ -59,6 +68,7 @@ if (DB_PATH !== LEGACY_DB_PATH && !fs.existsSync(DB_PATH) && fs.existsSync(LEGAC
 
 // Create database connection
 const db = new Database(DB_PATH);
+db.pragma('foreign_keys = ON');
 
 // Show app installation path prominently
 const appInstallPath = path.join(__dirname, '../..');
@@ -96,6 +106,36 @@ const runMigrations = () => {
       console.log('Running migration: Adding notification_email column');
       db.exec('ALTER TABLE users ADD COLUMN notification_email TEXT');
     }
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS project_tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_name TEXT NOT NULL,
+        tag_key TEXT NOT NULL,
+        tag_type TEXT NOT NULL,
+        label TEXT NOT NULL,
+        color TEXT,
+        sort_order INTEGER DEFAULT 0,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_name, tag_type, tag_key)
+      );
+      CREATE INDEX IF NOT EXISTS idx_project_tags_project ON project_tags(project_name);
+      CREATE INDEX IF NOT EXISTS idx_project_tags_type ON project_tags(tag_type);
+      CREATE TABLE IF NOT EXISTS session_tag_links (
+        session_id TEXT NOT NULL,
+        tag_id INTEGER NOT NULL,
+        linked_by TEXT,
+        source TEXT,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(session_id, tag_id),
+        FOREIGN KEY (session_id) REFERENCES session_metadata(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES project_tags(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_tag_links_session ON session_tag_links(session_id);
+      CREATE INDEX IF NOT EXISTS idx_session_tag_links_tag ON session_tag_links(tag_id);
+    `);
 
     console.log('Database migrations completed successfully');
   } catch (error) {
@@ -548,7 +588,26 @@ function parseSessionRow(row) {
 
   return {
     ...row,
-    metadata: row.metadata ? JSON.parse(row.metadata) : null
+    metadata: row.metadata ? JSON.parse(row.metadata) : null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+  };
+}
+
+function parseTagRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...row,
+    metadata: row.metadata ? JSON.parse(row.metadata) : null,
+    linkMetadata: row.link_metadata ? JSON.parse(row.link_metadata) : null,
+    tagKey: row.tag_key,
+    tagType: row.tag_type,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    linkedBy: row.linked_by,
+    linkedAt: row.linked_at,
   };
 }
 
@@ -628,6 +687,119 @@ function resolveMessageCount(existingCount, incomingCount) {
   const normalizedExisting = Number(existingCount || 0);
   const normalizedIncoming = Number(incomingCount || 0);
   return Math.max(normalizedExisting, normalizedIncoming);
+}
+
+function normalizeMetadataObject(metadata) {
+  return metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+    ? { ...metadata }
+    : {};
+}
+
+function serializeMetadata(metadata) {
+  const normalized = normalizeMetadataObject(metadata);
+  return Object.keys(normalized).length > 0 ? JSON.stringify(normalized) : null;
+}
+
+function getStageTagDecisions(metadata) {
+  const metadataObject = normalizeMetadataObject(metadata);
+  const decisions = metadataObject[STAGE_TAG_DECISIONS_KEY];
+  return decisions && typeof decisions === 'object' && !Array.isArray(decisions)
+    ? { ...decisions }
+    : {};
+}
+
+function applyManualStageTagDecisions(existingMetadata, projectStageTags = [], selectedTags = []) {
+  const metadataObject = normalizeMetadataObject(existingMetadata);
+  const decisions = getStageTagDecisions(metadataObject);
+  const selectedStageKeys = new Set(
+    (Array.isArray(selectedTags) ? selectedTags : [])
+      .filter((tag) => tag?.tagType === 'stage' || tag?.tag_type === 'stage')
+      .map((tag) => tag.tagKey || tag.tag_key)
+      .filter(Boolean)
+  );
+  const timestamp = new Date().toISOString();
+
+  (Array.isArray(projectStageTags) ? projectStageTags : []).forEach((tag) => {
+    const tagKey = tag?.tagKey || tag?.tag_key;
+    if (!tagKey) {
+      return;
+    }
+
+    decisions[tagKey] = {
+      decision: selectedStageKeys.has(tagKey) ? 'selected' : 'excluded',
+      source: 'manual',
+      updatedAt: timestamp,
+    };
+  });
+
+  metadataObject[STAGE_TAG_DECISIONS_KEY] = decisions;
+  return metadataObject;
+}
+
+function isAutomaticStageTagBlocked(metadata, tagType, tagKey, source) {
+  if (tagType !== 'stage' || !tagKey || source === 'manual') {
+    return false;
+  }
+
+  const decisions = getStageTagDecisions(metadata);
+  const decision = decisions[tagKey];
+  return decision?.decision === 'excluded' && decision?.source === 'manual';
+}
+
+function hydrateSessionRowsWithTags(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return [];
+  }
+
+  const sessionIds = Array.from(new Set(rows.map((row) => row?.id).filter(Boolean)));
+  if (sessionIds.length === 0) {
+    return rows.map(parseSessionRow).filter(Boolean);
+  }
+
+  const chunkSize = 900;
+  const tagsBySessionId = new Map();
+
+  for (let index = 0; index < sessionIds.length; index += chunkSize) {
+    const chunk = sessionIds.slice(index, index + chunkSize);
+    const placeholders = chunk.map(() => '?').join(', ');
+    const tagRows = db.prepare(`
+      SELECT
+        stl.session_id,
+        pt.id,
+        pt.project_name,
+        pt.tag_key,
+        pt.tag_type,
+        pt.label,
+        pt.color,
+        pt.sort_order,
+        pt.metadata,
+        pt.created_at,
+        stl.linked_by,
+        stl.source,
+        stl.metadata AS link_metadata,
+        stl.created_at AS linked_at
+      FROM session_tag_links stl
+      JOIN project_tags pt ON pt.id = stl.tag_id
+      WHERE stl.session_id IN (${placeholders})
+      ORDER BY pt.sort_order ASC, pt.label COLLATE NOCASE ASC, pt.id ASC
+    `).all(...chunk);
+
+    tagRows.forEach((tagRow) => {
+      const parsed = parseTagRow(tagRow);
+      if (!parsed) {
+        return;
+      }
+
+      const existing = tagsBySessionId.get(tagRow.session_id) || [];
+      existing.push(parsed);
+      tagsBySessionId.set(tagRow.session_id, existing);
+    });
+  }
+
+  return rows.map((row) => parseSessionRow({
+    ...row,
+    tags: tagsBySessionId.get(row.id) || [],
+  })).filter(Boolean);
 }
 
 const sessionDb = {
@@ -836,7 +1008,7 @@ const sessionDb = {
   getSessionsByProject: (projectName) => {
     try {
       const rows = db.prepare('SELECT * FROM session_metadata WHERE project_name = ?').all(projectName);
-      return rows.map(parseSessionRow);
+      return hydrateSessionRowsWithTags(rows);
     } catch (err) {
       console.error('Error getting project sessions:', err.message);
       return [];
@@ -861,7 +1033,7 @@ const sessionDb = {
         allRows.push(...rows);
       }
 
-      return allRows.map(parseSessionRow);
+      return hydrateSessionRowsWithTags(allRows);
     } catch (err) {
       console.error('Error getting sessions for projects:', err.message);
       return [];
@@ -871,9 +1043,35 @@ const sessionDb = {
   // Get metadata for a specific session
   getSessionById: (id) => {
     try {
-      return parseSessionRow(db.prepare('SELECT * FROM session_metadata WHERE id = ?').get(id));
+      return hydrateSessionRowsWithTags([
+        db.prepare('SELECT * FROM session_metadata WHERE id = ?').get(id)
+      ])[0] || null;
     } catch (err) {
       console.error('Error getting session metadata:', err.message);
+      return null;
+    }
+  },
+
+  updateSessionMetadata: (id, updater) => {
+    try {
+      const row = db.prepare('SELECT metadata FROM session_metadata WHERE id = ?').get(id);
+      if (!row) {
+        return null;
+      }
+
+      const currentMetadata = row.metadata ? JSON.parse(row.metadata) : null;
+      const nextMetadata = typeof updater === 'function'
+        ? updater(normalizeMetadataObject(currentMetadata))
+        : mergeSessionMetadata(currentMetadata, updater);
+
+      db.prepare('UPDATE session_metadata SET metadata = ? WHERE id = ?').run(
+        serializeMetadata(nextMetadata),
+        id
+      );
+
+      return sessionDb.getSessionById(id);
+    } catch (err) {
+      console.error('Error updating session metadata:', err.message);
       return null;
     }
   },
@@ -893,6 +1091,240 @@ const sessionDb = {
       console.error('Error deleting project session metadata:', err.message);
     }
   }
+};
+
+const tagDb = {
+  ensureDefaultStageTags: (projectName) => {
+    if (!projectName) {
+      return [];
+    }
+
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO project_tags (
+        project_name, tag_key, tag_type, label, color, sort_order, metadata
+      ) VALUES (?, ?, 'stage', ?, ?, ?, ?)
+    `);
+
+    const run = db.transaction(() => {
+      DEFAULT_STAGE_TAGS.forEach((tag) => {
+        insert.run(
+          projectName,
+          tag.tagKey,
+          tag.label,
+          tag.color,
+          tag.sortOrder,
+          null
+        );
+      });
+    });
+
+    try {
+      run();
+    } catch (err) {
+      console.error('Error ensuring default stage tags:', err.message);
+    }
+
+    return tagDb.listProjectTags(projectName, 'stage');
+  },
+
+  listProjectTags: (projectName, tagType = null) => {
+    try {
+      const rows = tagType
+        ? db.prepare(`
+            SELECT * FROM project_tags
+            WHERE project_name = ? AND tag_type = ?
+            ORDER BY sort_order ASC, label COLLATE NOCASE ASC, id ASC
+          `).all(projectName, tagType)
+        : db.prepare(`
+            SELECT * FROM project_tags
+            WHERE project_name = ?
+            ORDER BY tag_type COLLATE NOCASE ASC, sort_order ASC, label COLLATE NOCASE ASC, id ASC
+          `).all(projectName);
+      return rows.map(parseTagRow).filter(Boolean);
+    } catch (err) {
+      console.error('Error listing project tags:', err.message);
+      return [];
+    }
+  },
+
+  getTagByProjectAndKey: (projectName, tagType, tagKey) => {
+    try {
+      return parseTagRow(db.prepare(`
+        SELECT * FROM project_tags
+        WHERE project_name = ? AND tag_type = ? AND tag_key = ?
+      `).get(projectName, tagType, tagKey));
+    } catch (err) {
+      console.error('Error getting project tag:', err.message);
+      return null;
+    }
+  },
+
+  getTagsByIds: (projectName, tagIds = []) => {
+    try {
+      if (!Array.isArray(tagIds) || tagIds.length === 0) {
+        return [];
+      }
+
+      const normalizedIds = Array.from(new Set(
+        tagIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0)
+      ));
+
+      if (normalizedIds.length === 0) {
+        return [];
+      }
+
+      const placeholders = normalizedIds.map(() => '?').join(', ');
+      const rows = db.prepare(`
+        SELECT * FROM project_tags
+        WHERE project_name = ? AND id IN (${placeholders})
+        ORDER BY sort_order ASC, label COLLATE NOCASE ASC, id ASC
+      `).all(projectName, ...normalizedIds);
+      return rows.map(parseTagRow).filter(Boolean);
+    } catch (err) {
+      console.error('Error getting project tags by ids:', err.message);
+      return [];
+    }
+  },
+
+  listTagsForSession: (sessionId) => {
+    try {
+      const rows = db.prepare(`
+        SELECT
+          pt.id,
+          pt.project_name,
+          pt.tag_key,
+          pt.tag_type,
+          pt.label,
+          pt.color,
+          pt.sort_order,
+          pt.metadata,
+          pt.created_at,
+          stl.linked_by,
+          stl.source,
+          stl.metadata AS link_metadata,
+          stl.created_at AS linked_at
+        FROM session_tag_links stl
+        JOIN project_tags pt ON pt.id = stl.tag_id
+        WHERE stl.session_id = ?
+        ORDER BY pt.sort_order ASC, pt.label COLLATE NOCASE ASC, pt.id ASC
+      `).all(sessionId);
+      return rows.map(parseTagRow).filter(Boolean);
+    } catch (err) {
+      console.error('Error listing session tags:', err.message);
+      return [];
+    }
+  },
+
+  listSessionIdsForTag: (projectName, tagType, tagKey) => {
+    try {
+      const rows = db.prepare(`
+        SELECT stl.session_id
+        FROM session_tag_links stl
+        JOIN project_tags pt ON pt.id = stl.tag_id
+        WHERE pt.project_name = ? AND pt.tag_type = ? AND pt.tag_key = ?
+        ORDER BY datetime(stl.created_at) DESC
+      `).all(projectName, tagType, tagKey);
+      return rows.map((row) => row.session_id).filter(Boolean);
+    } catch (err) {
+      console.error('Error listing session ids for tag:', err.message);
+      return [];
+    }
+  },
+
+  replaceSessionTags: (sessionId, projectName, tagIds = [], options = {}) => {
+    try {
+      const selectedTags = tagDb.getTagsByIds(projectName, tagIds);
+      const projectStageTags = tagDb.listProjectTags(projectName, 'stage');
+      const normalizedTagIds = selectedTags.map((tag) => tag.id);
+      const linkedBy = options.linkedBy || null;
+      const source = options.source || null;
+      const metadata = options.metadata && typeof options.metadata === 'object'
+        ? JSON.stringify(options.metadata)
+        : null;
+
+      const replace = db.transaction(() => {
+        db.prepare(`
+          DELETE FROM session_tag_links
+          WHERE session_id = ?
+            AND tag_id IN (SELECT id FROM project_tags WHERE project_name = ?)
+        `).run(sessionId, projectName);
+
+        const insert = db.prepare(`
+          INSERT OR IGNORE INTO session_tag_links (
+            session_id, tag_id, linked_by, source, metadata
+          ) VALUES (?, ?, ?, ?, ?)
+        `);
+
+        normalizedTagIds.forEach((tagId) => {
+          insert.run(sessionId, tagId, linkedBy, source, metadata);
+        });
+
+        if (source === 'manual') {
+          const session = parseSessionRow(db.prepare('SELECT * FROM session_metadata WHERE id = ?').get(sessionId));
+          if (session) {
+            const nextMetadata = applyManualStageTagDecisions(session.metadata, projectStageTags, selectedTags);
+            db.prepare('UPDATE session_metadata SET metadata = ? WHERE id = ?').run(
+              serializeMetadata(nextMetadata),
+              sessionId
+            );
+          }
+        }
+      });
+
+      replace();
+      return tagDb.listTagsForSession(sessionId);
+    } catch (err) {
+      console.error('Error replacing session tags:', err.message);
+      return [];
+    }
+  },
+
+  appendSessionTagsByKeys: (sessionId, projectName, tagType, tagKeys = [], options = {}) => {
+    try {
+      const normalizedKeys = Array.from(new Set(
+        (Array.isArray(tagKeys) ? tagKeys : [])
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+      ));
+
+      if (normalizedKeys.length === 0) {
+        return tagDb.listTagsForSession(sessionId);
+      }
+
+      const session = parseSessionRow(db.prepare('SELECT * FROM session_metadata WHERE id = ?').get(sessionId));
+      const linkedBy = options.linkedBy || null;
+      const source = options.source || null;
+      const metadata = options.metadata && typeof options.metadata === 'object'
+        ? JSON.stringify(options.metadata)
+        : null;
+      const insert = db.prepare(`
+        INSERT OR IGNORE INTO session_tag_links (
+          session_id, tag_id, linked_by, source, metadata
+        ) VALUES (?, ?, ?, ?, ?)
+      `);
+
+      const append = db.transaction(() => {
+        normalizedKeys.forEach((tagKey) => {
+          if (isAutomaticStageTagBlocked(session?.metadata, tagType, tagKey, source)) {
+            return;
+          }
+
+          const tag = tagDb.getTagByProjectAndKey(projectName, tagType, tagKey);
+          if (tag) {
+            insert.run(sessionId, tag.id, linkedBy, source, metadata);
+          }
+        });
+      });
+
+      append();
+      return tagDb.listTagsForSession(sessionId);
+    } catch (err) {
+      console.error('Error appending session tags:', err.message);
+      return [];
+    }
+  },
 };
 
 // Project index operations
@@ -1004,6 +1436,7 @@ export {
   credentialsDb,
   githubTokensDb, // Backward compatibility
   sessionDb,
+  tagDb,
   projectDb,
   normalizeSessionTimestamp
 };

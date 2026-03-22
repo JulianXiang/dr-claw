@@ -73,6 +73,21 @@ export const api = {
     }),
   sessions: (projectName, limit = 5, offset = 0) =>
     authenticatedFetch(`/api/projects/${projectName}/sessions?limit=${limit}&offset=${offset}`),
+  projectTags: (projectName, tagType = null) => {
+    const params = new URLSearchParams();
+    if (tagType) {
+      params.append('tagType', tagType);
+    }
+    const query = params.toString();
+    return authenticatedFetch(`/api/projects/${projectName}/tags${query ? `?${query}` : ''}`);
+  },
+  sessionTags: (projectName, sessionId) =>
+    authenticatedFetch(`/api/projects/${projectName}/sessions/${sessionId}/tags`),
+  updateSessionTags: (projectName, sessionId, tagIds) =>
+    authenticatedFetch(`/api/projects/${projectName}/sessions/${sessionId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tagIds }),
+    }),
   sessionMessages: (projectName, sessionId, limit = null, offset = 0, provider = 'claude') => {
     const params = new URLSearchParams();
     if (limit !== null) {

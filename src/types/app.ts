@@ -2,6 +2,29 @@ export type SessionProvider = 'claude' | 'cursor' | 'codex' | 'gemini';
 
 export type SessionMode = 'research' | 'workspace_qa';
 
+export interface SessionTag {
+  id: number;
+  project_name?: string;
+  tag_key?: string;
+  tag_type?: 'stage' | string;
+  label: string;
+  color?: string | null;
+  sort_order?: number;
+  metadata?: Record<string, unknown> | null;
+  source?: string | null;
+  linked_by?: string | null;
+  linked_at?: string | null;
+  link_metadata?: Record<string, unknown> | null;
+  created_at?: string;
+  tagKey: string;
+  tagType: 'stage' | string;
+  sortOrder?: number;
+  createdAt?: string;
+  linkedBy?: string | null;
+  linkedAt?: string | null;
+  linkMetadata?: Record<string, unknown> | null;
+}
+
 export interface PendingAutoIntake {
   prompt?: string | null;
   triggerId?: string | null;
@@ -25,6 +48,7 @@ export interface ProjectSession {
   summary?: string;
   name?: string;
   mode?: SessionMode;
+  tags?: SessionTag[];
   createdAt?: string;
   created_at?: string;
   updated_at?: string;

@@ -150,6 +150,7 @@ export function useChatComposerState({
   const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
   const [thinkingMode, setThinkingMode] = useState('none');
   const [intakeGreeting, setIntakeGreeting] = useState<string | null>(null);
+  const [pendingStageTagKeys, setPendingStageTagKeys] = useState<string[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputHighlightRef = useRef<HTMLDivElement>(null);
@@ -167,6 +168,10 @@ export function useChatComposerState({
       }
     };
   }, []);
+
+  useEffect(() => {
+    setPendingStageTagKeys([]);
+  }, [selectedProject?.name, selectedSession?.id]);
 
   const handleBuiltInCommand = useCallback(
     (result: CommandExecutionResult) => {
@@ -721,6 +726,8 @@ export function useChatComposerState({
             toolsSettings,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
+            stageTagKeys: pendingStageTagKeys,
+            stageTagSource: 'task_context',
           },
         });
       } else if (provider === 'gemini') {
@@ -740,6 +747,8 @@ export function useChatComposerState({
             toolsSettings,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
+            stageTagKeys: pendingStageTagKeys,
+            stageTagSource: 'task_context',
           },
         });
       } else if (provider === 'codex') {
@@ -757,6 +766,8 @@ export function useChatComposerState({
             permissionMode: permissionMode === 'plan' ? 'default' : permissionMode,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
+            stageTagKeys: pendingStageTagKeys,
+            stageTagSource: 'task_context',
           },
         });
       } else {
@@ -775,12 +786,15 @@ export function useChatComposerState({
             images: uploadedImages,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
+            stageTagKeys: pendingStageTagKeys,
+            stageTagSource: 'task_context',
           },
         });
       }
 
       setInput('');
       inputValueRef.current = '';
+      setPendingStageTagKeys([]);
       resetCommandMenuState();
       setAttachedImages([]);
       setUploadingImages(new Map());
@@ -817,6 +831,7 @@ export function useChatComposerState({
       setClaudeStatus,
       setIsLoading,
       setIsUserScrolledUp,
+      pendingStageTagKeys,
       slashCommands,
       thinkingMode,
       intakeGreeting,
@@ -929,6 +944,7 @@ export function useChatComposerState({
       setCursorPosition(cursorPos);
 
       if (!newValue.trim()) {
+        setPendingStageTagKeys([]);
         event.target.style.height = 'auto';
         setIsTextareaExpanded(false);
         resetCommandMenuState();
@@ -1005,6 +1021,7 @@ export function useChatComposerState({
   const handleClearInput = useCallback(() => {
     setInput('');
     inputValueRef.current = '';
+    setPendingStageTagKeys([]);
     resetCommandMenuState();
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -1205,6 +1222,7 @@ export function useChatComposerState({
     isInputFocused,
     intakeGreeting,
     setIntakeGreeting,
+    setPendingStageTagKeys,
     submitProgrammaticInput,
   };
 }

@@ -109,6 +109,7 @@ function normalizeTask(task) {
     id: task.id,
     title: task.title || 'Untitled Task',
     status: normalizeTaskStatus(task.status),
+    stage: typeof task.stage === 'string' ? task.stage : '',
     nextActionPrompt: typeof task.nextActionPrompt === 'string' ? task.nextActionPrompt : '',
   };
 }
@@ -338,6 +339,8 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
             env: sessionEnv,
             model,
             permissionMode,
+            stageTagKeys: task.stage ? [task.stage] : [],
+            stageTagSource: 'auto_research',
           }, writer)
           : provider === 'gemini'
             ? spawnGemini(prompt, {
@@ -347,6 +350,8 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
               env: sessionEnv,
               model,
               permissionMode,
+              stageTagKeys: task.stage ? [task.stage] : [],
+              stageTagSource: 'auto_research',
             }, writer)
             : queryClaudeSDK(prompt, {
               cwd: projectPath,
@@ -354,6 +359,8 @@ async function runAutoResearch(runId, userId, projectName, projectPath) {
               sessionId: runState.sessionId,
               env: sessionEnv,
               permissionMode,
+              stageTagKeys: task.stage ? [task.stage] : [],
+              stageTagSource: 'auto_research',
             }, writer),
         TASK_TIMEOUT_MS,
         async () => {

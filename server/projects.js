@@ -857,6 +857,7 @@ function mapIndexedSessionToProjectSession(session, provider) {
   const createdAt = session?.created_at || session?.createdAt || lastActivity;
   const messageCount = Number(session?.message_count ?? session?.messageCount ?? 0);
   const baseName = session?.display_name || session?.name || session?.summary || null;
+  const tags = Array.isArray(session?.tags) ? session.tags : [];
 
   if (provider === 'cursor') {
     return {
@@ -866,6 +867,7 @@ function mapIndexedSessionToProjectSession(session, provider) {
       lastActivity,
       messageCount,
       mode,
+      tags,
       __provider: 'cursor',
     };
   }
@@ -879,6 +881,7 @@ function mapIndexedSessionToProjectSession(session, provider) {
       lastActivity,
       messageCount,
       mode,
+      tags,
       __provider: 'codex',
     };
   }
@@ -892,6 +895,7 @@ function mapIndexedSessionToProjectSession(session, provider) {
       lastActivity,
       messageCount,
       mode,
+      tags,
       __provider: 'gemini',
     };
   }
@@ -903,6 +907,7 @@ function mapIndexedSessionToProjectSession(session, provider) {
     lastActivity,
     messageCount,
     mode,
+    tags,
     __provider: 'claude',
   };
 }
@@ -1422,7 +1427,10 @@ async function parseJsonlSessions(filePath, projectName = null, dbSessionMap = n
                 lastAssistantMessage: null,
                 mode: dbSessionMap && dbSessionMap.has(entry.sessionId)
                   ? (readExplicitSessionModeFromMetadata(dbSessionMap.get(entry.sessionId).metadata) || 'research')
-                  : 'research'
+                  : 'research',
+                tags: dbSessionMap && dbSessionMap.has(entry.sessionId)
+                  ? (Array.isArray(dbSessionMap.get(entry.sessionId).tags) ? dbSessionMap.get(entry.sessionId).tags : [])
+                  : []
               });
             }
 
@@ -2635,7 +2643,10 @@ async function getCursorSessions(projectPath, options = {}) {
             mode: dbSessionMap.has(sessionId)
               ? (readExplicitSessionModeFromMetadata(dbSessionMap.get(sessionId).metadata) || 'research')
               : 'research',
-            projectPath
+            projectPath,
+            tags: dbSessionMap.has(sessionId)
+              ? (Array.isArray(dbSessionMap.get(sessionId).tags) ? dbSessionMap.get(sessionId).tags : [])
+              : [],
           });
           seenSessionIds.add(sessionId);
         } catch (error) {
@@ -2696,6 +2707,9 @@ async function getGeminiSessions(projectPath, optionsOrUserId = null) {
           ? (readExplicitSessionModeFromMetadata(dbSessionMap.get(session.id).metadata) || normalizeSessionMode(session.mode))
           : normalizeSessionMode(session.mode),
         projectPath,
+        tags: dbSessionMap.has(session.id)
+          ? (Array.isArray(dbSessionMap.get(session.id).tags) ? dbSessionMap.get(session.id).tags : [])
+          : (Array.isArray(session.tags) ? session.tags : []),
       }));
     const filteredSessions = targetSessionId
       ? dedupedSessions.filter((session) => session.id === targetSessionId)
@@ -3007,6 +3021,9 @@ async function getCodexSessions(projectPath, options = {}) {
       mode: dbSessionMap.has(session.id)
         ? (readExplicitSessionModeFromMetadata(dbSessionMap.get(session.id).metadata) || normalizeSessionMode(session.mode))
         : normalizeSessionMode(session.mode),
+      tags: dbSessionMap.has(session.id)
+        ? (Array.isArray(dbSessionMap.get(session.id).tags) ? dbSessionMap.get(session.id).tags : [])
+        : (Array.isArray(session.tags) ? session.tags : []),
     }));
     const filteredSessions = targetSessionId
       ? dedupedSessions.filter((session) => session.id === targetSessionId)

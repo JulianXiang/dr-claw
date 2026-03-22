@@ -1,4 +1,4 @@
-import { sessionDb } from '../database/db.js';
+import { sessionDb, tagDb } from '../database/db.js';
 import { encodeProjectPath } from '../projects.js';
 
 function defaultSessionName(provider) {
@@ -14,6 +14,50 @@ function defaultSessionName(provider) {
   }
 }
 
+function normalizeStageTagKeys(stageTagKeys = []) {
+  const normalized = Array.from(new Set(
+    (Array.isArray(stageTagKeys) ? stageTagKeys : [])
+      .map((value) => String(value || '').trim().toLowerCase())
+      .map((value) => {
+        if (value === 'presentation') return 'promotion';
+        if (value === 'research') return 'survey';
+        return value;
+      })
+      .filter((value) => ['survey', 'ideation', 'experiment', 'publication', 'promotion'].includes(value))
+  ));
+
+  return normalized;
+}
+
+export function applyStageTagsToSession({
+  sessionId,
+  projectPath = null,
+  projectName = null,
+  stageTagKeys = [],
+  source = 'chat_context',
+  linkedBy = null,
+}) {
+  if (!sessionId) {
+    return [];
+  }
+
+  const normalizedStageTagKeys = normalizeStageTagKeys(stageTagKeys);
+  if (normalizedStageTagKeys.length === 0) {
+    return [];
+  }
+
+  const resolvedProjectName = projectName || (projectPath ? encodeProjectPath(projectPath) : null);
+  if (!resolvedProjectName) {
+    return [];
+  }
+
+  tagDb.ensureDefaultStageTags(resolvedProjectName);
+  return tagDb.appendSessionTagsByKeys(sessionId, resolvedProjectName, 'stage', normalizedStageTagKeys, {
+    source,
+    linkedBy,
+  });
+}
+
 export function recordIndexedSession({
   sessionId,
   provider,
@@ -21,6 +65,9 @@ export function recordIndexedSession({
   sessionMode = 'research',
   displayName = null,
   lastActivity = null,
+  stageTagKeys = [],
+  tagSource = 'chat_context',
+  linkedBy = null,
 }) {
   if (!sessionId || !provider || !projectPath) {
     return;
@@ -39,4 +86,13 @@ export function recordIndexedSession({
       indexState: 'placeholder',
     },
   );
+
+  applyStageTagsToSession({
+    sessionId,
+    projectPath,
+    projectName,
+    stageTagKeys,
+    source: tagSource,
+    linkedBy,
+  });
 }

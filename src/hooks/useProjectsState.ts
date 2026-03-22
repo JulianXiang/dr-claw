@@ -13,6 +13,8 @@ import type {
   ProjectsUpdatedMessage,
   PendingAutoIntake,
   SessionMode,
+  SessionProvider,
+  SessionTag,
   TrashProject,
 } from '../types/app';
 
@@ -54,6 +56,13 @@ type UseProjectsStateArgs = {
   activeSessions: Set<string>;
 };
 
+type SessionTagsUpdatedDetail = {
+  projectName: string;
+  sessionId: string;
+  provider?: SessionProvider;
+  tags: SessionTag[];
+};
+
 const serialize = (value: unknown) => JSON.stringify(value ?? null);
 
 const projectsHaveChanges = (
@@ -88,7 +97,8 @@ const projectsHaveChanges = (
 
     return (
       serialize(nextProject.cursorSessions) !== serialize(prevProject.cursorSessions) ||
-      serialize(nextProject.codexSessions) !== serialize(prevProject.codexSessions)
+      serialize(nextProject.codexSessions) !== serialize(prevProject.codexSessions) ||
+      serialize(nextProject.geminiSessions) !== serialize(prevProject.geminiSessions)
     );
   });
 };
@@ -100,6 +110,82 @@ const getProjectSessions = (project: Project): ProjectSession[] => {
     ...(project.cursorSessions ?? []),
     ...(project.geminiSessions ?? []),
   ];
+};
+
+const matchesSessionIdentity = (
+  session: ProjectSession,
+  detail: SessionTagsUpdatedDetail,
+  providerHint?: SessionProvider,
+): boolean => {
+  if (session.id !== detail.sessionId) {
+    return false;
+  }
+
+  if (!detail.provider) {
+    return true;
+  }
+
+  return (session.__provider || providerHint || 'claude') === detail.provider;
+};
+
+const applySessionTagsToList = (
+  sessions: ProjectSession[] | undefined,
+  detail: SessionTagsUpdatedDetail,
+  providerHint: SessionProvider,
+): ProjectSession[] | undefined => {
+  if (!Array.isArray(sessions)) {
+    return sessions;
+  }
+
+  let changed = false;
+  const nextSessions = sessions.map((session) => {
+    if (!matchesSessionIdentity(session, detail, providerHint)) {
+      return session;
+    }
+
+    if (serialize(session.tags) === serialize(detail.tags)) {
+      return session;
+    }
+
+    changed = true;
+    return {
+      ...session,
+      tags: detail.tags,
+    };
+  });
+
+  return changed ? nextSessions : sessions;
+};
+
+const applySessionTagsToProject = (
+  project: Project,
+  detail: SessionTagsUpdatedDetail,
+): Project => {
+  if (!project || project.name !== detail.projectName) {
+    return project;
+  }
+
+  const nextClaudeSessions = applySessionTagsToList(project.sessions, detail, 'claude');
+  const nextCursorSessions = applySessionTagsToList(project.cursorSessions, detail, 'cursor');
+  const nextCodexSessions = applySessionTagsToList(project.codexSessions, detail, 'codex');
+  const nextGeminiSessions = applySessionTagsToList(project.geminiSessions, detail, 'gemini');
+
+  if (
+    nextClaudeSessions === project.sessions &&
+    nextCursorSessions === project.cursorSessions &&
+    nextCodexSessions === project.codexSessions &&
+    nextGeminiSessions === project.geminiSessions
+  ) {
+    return project;
+  }
+
+  return {
+    ...project,
+    sessions: nextClaudeSessions,
+    cursorSessions: nextCursorSessions,
+    codexSessions: nextCodexSessions,
+    geminiSessions: nextGeminiSessions,
+  };
 };
 
 const isUpdateAdditive = (
@@ -234,6 +320,65 @@ export function useProjectsState({
       void fetchTrashProjects();
     }
   }, [activeTab, fetchTrashProjects]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleSessionTagsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<SessionTagsUpdatedDetail>).detail;
+      if (
+        !detail
+        || !detail.projectName
+        || !detail.sessionId
+        || !Array.isArray(detail.tags)
+      ) {
+        return;
+      }
+
+      setProjects((prevProjects) => {
+        let changed = false;
+        const nextProjects = prevProjects.map((project) => {
+          const updatedProject = applySessionTagsToProject(project, detail);
+          if (updatedProject !== project) {
+            changed = true;
+          }
+          return updatedProject;
+        });
+        return changed ? nextProjects : prevProjects;
+      });
+
+      setSelectedProject((prevProject) => {
+        if (!prevProject) {
+          return prevProject;
+        }
+
+        const nextProject = applySessionTagsToProject(prevProject, detail);
+        return nextProject;
+      });
+
+      setSelectedSession((prevSession) => {
+        if (!prevSession || !matchesSessionIdentity(prevSession, detail)) {
+          return prevSession;
+        }
+
+        if (serialize(prevSession.tags) === serialize(detail.tags)) {
+          return prevSession;
+        }
+
+        return {
+          ...prevSession,
+          tags: detail.tags,
+        };
+      });
+    };
+
+    window.addEventListener('session-tags-updated', handleSessionTagsUpdated as EventListener);
+    return () => {
+      window.removeEventListener('session-tags-updated', handleSessionTagsUpdated as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (!latestMessage) {

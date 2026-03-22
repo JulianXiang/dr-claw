@@ -7,7 +7,7 @@ import { createRequestId, waitForToolApproval, matchesToolPermission } from './u
 import { encodeProjectPath, ensureProjectSkillLinks, reconcileGeminiSessionIndex } from './projects.js';
 import { writeProjectTemplates } from './templates/index.js';
 import { stripInternalContextPrefix } from './utils/sessionFormatting.js';
-import { recordIndexedSession } from './utils/sessionIndex.js';
+import { applyStageTagsToSession, recordIndexedSession } from './utils/sessionIndex.js';
 import { splitLegacyGeminiThoughtContent } from '../shared/geminiThoughtParser.js';
 
 // Use cross-spawn on Windows for better command execution
@@ -474,7 +474,7 @@ async function syncSessionMetadata(sessionId, projectPath, sessionMode = 'resear
  */
 export async function spawnGemini(command, options = {}, ws) {
   return new Promise(async (resolve, reject) => {
-    const { sessionId, projectPath, cwd, model, images, attachments, permissionMode, toolsSettings, sessionMode, env } = options;
+    const { sessionId, projectPath, cwd, model, images, attachments, permissionMode, toolsSettings, sessionMode, stageTagKeys, stageTagSource = 'task_context', env } = options;
     let capturedSessionId = sessionId;
     let sessionCreatedSent = false;
     let messageStartedSent = false;
@@ -494,6 +494,15 @@ export async function spawnGemini(command, options = {}, ws) {
     let policyViolationTriggered = false;
     
     const workingDir = cwd || projectPath || process.cwd();
+
+    if (sessionId && workingDir) {
+      applyStageTagsToSession({
+        sessionId,
+        projectPath: workingDir,
+        stageTagKeys,
+        source: stageTagSource,
+      });
+    }
 
     // Keep Gemini session bootstrap parity with Claude sessions:
     // ensure skill links and instruction templates exist in project workspace.
@@ -814,6 +823,8 @@ export async function spawnGemini(command, options = {}, ws) {
                   provider: 'gemini',
                   projectPath: workingDir,
                   sessionMode: sessionMode || 'research',
+                  stageTagKeys,
+                  tagSource: stageTagSource,
                 });
                 ws.send({ type: 'session-created', sessionId: capturedSessionId, provider: 'gemini', mode: sessionMode || 'research' });
               }
