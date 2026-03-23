@@ -57,6 +57,7 @@ interface ChatMessagesPaneProps {
   showThinking?: boolean;
   selectedProject: Project;
   isLoading: boolean;
+  statusText?: string | null;
   intakeGreeting?: string | null;
   providerAvailability: Record<SessionProvider, ProviderAvailability>;
   newSessionMode?: SessionMode;
@@ -104,6 +105,7 @@ export default function ChatMessagesPane({
   showThinking,
   selectedProject,
   isLoading,
+  statusText,
   intakeGreeting,
   providerAvailability,
   newSessionMode = 'research',
@@ -334,7 +336,7 @@ export default function ChatMessagesPane({
         </>
       )}
 
-      {isLoading && <AssistantThinkingIndicator selectedProvider={provider} />}
+      {isLoading && <AssistantThinkingIndicator selectedProvider={provider} statusText={statusText} />}
       </div>
     </div>
   );

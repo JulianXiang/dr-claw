@@ -1,4 +1,8 @@
 {
+  "status": {
+    "thinking": "思考中...",
+    "runningCode": "运行代码中"
+  },
   "codeBlock": {
     "copy": "复制",
     "copied": "已复制",

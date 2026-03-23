@@ -1,4 +1,8 @@
 {
+  "status": {
+    "thinking": "Thinking...",
+    "runningCode": "Running code"
+  },
   "codeBlock": {
     "copy": "Copy",
     "copied": "Copied",

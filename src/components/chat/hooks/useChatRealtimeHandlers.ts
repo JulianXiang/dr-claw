@@ -176,6 +176,9 @@ export function useChatRealtimeHandlers({
       }
 
       if (part.type === 'tool_use') {
+        if (['Bash', 'run_shell_command'].includes(part.name)) {
+          setClaudeStatus((prev) => prev ? { ...prev, text: 'Running code' } : prev);
+        }
         const toolInput = part.input ? JSON.stringify(part.input, null, 2) : '';
 
         if (parentToolUseId) {
@@ -895,6 +898,7 @@ export function useChatRealtimeHandlers({
               break;
 
             case 'command_execution':
+              setClaudeStatus((prev) => prev ? { ...prev, text: 'Running code' } : prev);
               if (codexData.command) {
                 const exitCode = codexData.exitCode;
                 const output = codexData.output;
