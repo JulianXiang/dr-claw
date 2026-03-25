@@ -146,9 +146,54 @@ cp .env.example .env
 npm run dev
 ```
 
-5. **打开浏览器** 访问 `http://localhost:5173`（或您在 `.env` 中配置的端口）
+5. **使用应用**
 
-如果后续 Agent 网页搜索不可用，请查看下方的**网页搜索排障**。
+Dr. Claw 提供两种使用方式：**前端 UI** 和 **纯终端模式**。UI 提供更丰富的可视化，但偶尔可能遇到 bug；纯终端模式更加稳定轻量。
+
+#### 方式 A：前端 UI
+
+打开浏览器访问 `http://localhost:5173`（或您在 `.env` 中配置的端口）。
+
+#### 方式 B：纯终端模式
+
+<p align="center">
+  <img src="public/screenshots/terminal_example1.png" alt="终端工作流示例" width="800">
+</p>
+
+打开**第二个终端**（保持第一个终端中的 `npm run dev` 运行），安装 `drclaw` CLI 工具：
+
+```bash
+pip install -e ./agent-harness
+```
+
+使用创建账户时设置的用户名和密码登录：
+
+```bash
+drclaw auth login --username 你的用户名 --password 你的密码
+```
+
+安装至少一个 Agent CLI（如果尚未安装）：
+
+| Agent | 安装命令 | 认证方式 |
+|-------|---------|---------|
+| Claude Code | `npm install -g @anthropic-ai/claude-code` | `claude` → 按提示完成 OAuth |
+| Gemini CLI | `npm install -g @google/gemini-cli` | `gemini` → Google 登录，或 `export GOOGLE_API_KEY=...` |
+| Codex CLI | `npm install -g @openai/codex` | `codex login`，或 `export OPENAI_API_KEY=...` |
+
+进入你要工作的项目目录，启动任一 Agent：
+
+```bash
+cd /path/to/your/project
+claude    # 或: gemini | codex
+```
+
+`dr-claw/skills/` 中的技能会在项目创建时自动软链接到项目的 `.claude/skills/` 目录，Agent 无需额外配置即可自动发现。你也可以在会话中手动引用任意技能：
+
+```
+> Read .claude/skills/inno-experiment-analysis/SKILL.md and follow it to analyze my results.
+```
+
+如果后续 Agent 网页搜索不可用，请查看[网页搜索排障](#第-4-步--网页搜索排障)。
 
 ## 接入 OpenClaw
 
