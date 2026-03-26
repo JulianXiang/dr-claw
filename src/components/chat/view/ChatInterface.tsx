@@ -226,6 +226,7 @@ function ChatInterface({
     isInputFocused,
     intakeGreeting,
     setIntakeGreeting,
+    setPendingStageTagKeys,
     submitProgrammaticInput,
   } = useChatComposerState({
     selectedProject,
@@ -325,6 +326,15 @@ function ChatInterface({
     if (importedProjectAnalysisProvider === 'gemini') return geminiModel;
     return cursorModel;
   }, [claudeModel, codexModel, cursorModel, geminiModel, importedProjectAnalysisProvider]);
+
+  const handleStartTaskInChat = useCallback((prompt?: string, task?: { stage?: string } | null) => {
+    const nextPrompt = prompt && prompt.trim()
+      ? prompt
+      : t('tasks.nextTaskPrompt', { defaultValue: 'Start the next task' });
+    setInput(nextPrompt);
+    const stage = String(task?.stage || '').trim().toLowerCase();
+    setPendingStageTagKeys(stage ? [stage] : []);
+  }, [setInput, setPendingStageTagKeys, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -611,9 +621,7 @@ function ChatInterface({
         </div>
         <div className="flex justify-end px-4 pb-4">
           <ChatTaskProgressPill
-            onStartTask={(prompt?: string) =>
-              setInput(prompt && prompt.trim() ? prompt : t('tasks.nextTaskPrompt', { defaultValue: 'Start the next task' }))
-            }
+            onStartTask={handleStartTaskInChat}
             onShowAllTasks={onShowAllTasks}
           />
         </div>
@@ -745,9 +753,7 @@ function ChatInterface({
             </div>
             <div className="flex-1 min-w-0">
               <ChatTaskProgressPill
-                onStartTask={(prompt?: string) =>
-                  setInput(prompt && prompt.trim() ? prompt : t('tasks.nextTaskPrompt', { defaultValue: 'Start the next task' }))
-                }
+                onStartTask={handleStartTaskInChat}
                 onShowAllTasks={onShowAllTasks}
               />
             </div>

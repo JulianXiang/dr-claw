@@ -20,7 +20,7 @@ import os from 'os';
 import { CLAUDE_MODELS } from '../shared/modelConstants.js';
 import { encodeProjectPath, ensureProjectSkillLinks, reconcileClaudeSessionIndex } from './projects.js';
 import { writeProjectTemplates } from './templates/index.js';
-import { recordIndexedSession } from './utils/sessionIndex.js';
+import { applyStageTagsToSession, recordIndexedSession } from './utils/sessionIndex.js';
 
 import { createRequestId, waitForToolApproval, resolveToolApproval as resolvePermApproval, matchesToolPermission } from './utils/permissions.js';
 
@@ -431,7 +431,7 @@ async function loadMcpConfig(cwd) {
  * @returns {Promise<void>}
  */
 async function queryClaudeSDK(command, options = {}, ws) {
-  const { sessionId, sessionMode } = options;
+  const { sessionId, sessionMode, stageTagKeys, stageTagSource = 'task_context' } = options;
   let capturedSessionId = sessionId;
   let sessionCreatedSent = false;
   let tempImagePaths = [];
@@ -439,6 +439,16 @@ async function queryClaudeSDK(command, options = {}, ws) {
   const sessionProjectPath = options.cwd || options.projectPath || null;
 
   try {
+    // Synchronous (better-sqlite3) — no await needed.
+    if (sessionId && sessionProjectPath) {
+      applyStageTagsToSession({
+        sessionId,
+        projectPath: sessionProjectPath,
+        stageTagKeys,
+        source: stageTagSource,
+      });
+    }
+
     // Ensure skills symlinks and CLAUDE.md template exist in the project directory
     const projectDir = options.cwd || options.projectPath;
     if (projectDir) {
@@ -578,6 +588,8 @@ async function queryClaudeSDK(command, options = {}, ws) {
               provider: 'claude',
               projectPath: options.cwd || options.projectPath,
               sessionMode: sessionMode || 'research',
+              stageTagKeys,
+              tagSource: stageTagSource,
             });
           }
           ws.send({

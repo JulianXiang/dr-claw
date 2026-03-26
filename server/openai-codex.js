@@ -16,7 +16,7 @@
 import { Codex } from '@openai/codex-sdk';
 import { encodeProjectPath, reconcileCodexSessionIndex } from './projects.js';
 import { sessionDb } from './database/db.js';
-import { recordIndexedSession } from './utils/sessionIndex.js';
+import { applyStageTagsToSession, recordIndexedSession } from './utils/sessionIndex.js';
 
 // Track active sessions
 const activeCodexSessions = new Map();
@@ -276,7 +276,9 @@ export async function queryCodex(command, options = {}, ws) {
     env,
     attachments,
     permissionMode = 'default',
-    sessionMode
+    sessionMode,
+    stageTagKeys,
+    stageTagSource = 'task_context',
   } = options;
 
   const workingDirectory = cwd || projectPath || process.cwd();
@@ -288,6 +290,16 @@ export async function queryCodex(command, options = {}, ws) {
   const abortController = new AbortController();
 
   try {
+    // Synchronous (better-sqlite3) — no await needed.
+    if (sessionId && workingDirectory) {
+      applyStageTagsToSession({
+        sessionId,
+        projectPath: workingDirectory,
+        stageTagKeys,
+        source: stageTagSource,
+      });
+    }
+
     // Initialize Codex SDK
     codex = new Codex(env ? { env } : undefined);
 
@@ -326,6 +338,8 @@ export async function queryCodex(command, options = {}, ws) {
         provider: 'codex',
         projectPath: workingDirectory,
         sessionMode: sessionMode || 'research',
+        stageTagKeys,
+        tagSource: stageTagSource,
       });
     }
     sendMessage(ws, {

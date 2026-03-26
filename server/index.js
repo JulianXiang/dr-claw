@@ -68,7 +68,7 @@ import telemetryRoutes from './routes/telemetry.js';
 import computeRoutes from './routes/compute.js';
 import newsRoutes from './routes/news.js';
 import autoResearchRoutes from './routes/auto-research.js';
-import { initializeDatabase } from './database/db.js';
+import { initializeDatabase, sessionDb, tagDb } from './database/db.js';
 import { validateApiKey, authenticateToken, authenticateWebSocket } from './middleware/auth.js';
 import { IS_PLATFORM } from './constants/config.js';
 import { enqueueTelemetryEvent } from './telemetry.js';
@@ -770,6 +770,62 @@ app.get('/api/projects/:projectName/sessions/:sessionId/messages', authenticateT
             // New format with pagination info
             res.json(result);
         }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/projects/:projectName/tags', authenticateToken, async (req, res) => {
+    try {
+        const { projectName } = req.params;
+        // Lazy initialization: idempotent, uses INSERT OR IGNORE internally.
+        tagDb.ensureDefaultStageTags(projectName);
+        const { tagType } = req.query;
+        const tags = tagDb.listProjectTags(projectName, tagType || null);
+        res.json({ tags });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/projects/:projectName/sessions/:sessionId/tags', authenticateToken, async (req, res) => {
+    try {
+        const { projectName, sessionId } = req.params;
+        // Lazy initialization: idempotent, uses INSERT OR IGNORE internally.
+        tagDb.ensureDefaultStageTags(projectName);
+        const session = sessionDb.getSessionById(sessionId);
+        if (!session || session.project_name !== projectName) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const tags = tagDb.listTagsForSession(sessionId);
+        res.json({ tags });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/projects/:projectName/sessions/:sessionId/tags', authenticateToken, async (req, res) => {
+    try {
+        const { projectName, sessionId } = req.params;
+        const { tagIds } = req.body || {};
+
+        if (!Array.isArray(tagIds)) {
+            return res.status(400).json({ error: 'tagIds array is required' });
+        }
+
+        // Lazy initialization: idempotent, uses INSERT OR IGNORE internally.
+        tagDb.ensureDefaultStageTags(projectName);
+        const session = sessionDb.getSessionById(sessionId);
+        if (!session || session.project_name !== projectName) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const tags = tagDb.replaceSessionTags(sessionId, projectName, tagIds, {
+            linkedBy: req.user?.username || 'user',
+            source: 'manual',
+        });
+        res.json({ success: true, tags });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import crossSpawn from 'cross-spawn';
 import { resolveCursorCliCommand } from './utils/cursorCommand.js';
-import { recordIndexedSession } from './utils/sessionIndex.js';
+import { applyStageTagsToSession, recordIndexedSession } from './utils/sessionIndex.js';
 
 // Use cross-spawn on Windows for better command execution
 const spawnFunction = process.platform === 'win32' ? crossSpawn : spawn;
@@ -10,7 +10,7 @@ let activeCursorProcesses = new Map(); // Track active processes by session ID
 
 async function spawnCursor(command, options = {}, ws) {
   return new Promise(async (resolve, reject) => {
-    const { sessionId, projectPath, cwd, resume, toolsSettings, skipPermissions, model, images, sessionMode, env } = options;
+    const { sessionId, projectPath, cwd, resume, toolsSettings, skipPermissions, model, images, sessionMode, stageTagKeys, stageTagSource = 'task_context', env } = options;
     let capturedSessionId = sessionId; // Track session ID throughout the process
     let sessionCreatedSent = false; // Track if we've already sent session-created event
     let messageBuffer = ''; // Buffer for accumulating assistant messages
@@ -55,6 +55,16 @@ async function spawnCursor(command, options = {}, ws) {
     // Use cwd (actual project directory) instead of projectPath
     const workingDir = cwd || projectPath || process.cwd();
     const cursorCommand = resolveCursorCliCommand();
+
+    // Synchronous (better-sqlite3) — no await needed.
+    if (sessionId && workingDir) {
+      applyStageTagsToSession({
+        sessionId,
+        projectPath: workingDir,
+        stageTagKeys,
+        source: stageTagSource,
+      });
+    }
 
     if (!cursorCommand) {
       const errorMessage = 'Cursor CLI not found. Install Cursor CLI or set CURSOR_CLI_PATH to `agent` or `cursor-agent`.';
@@ -140,6 +150,8 @@ async function spawnCursor(command, options = {}, ws) {
                       projectPath: workingDir,
                       sessionMode: sessionMode || 'research',
                       displayName: response.session_title || response.title || null,
+                      stageTagKeys,
+                      tagSource: stageTagSource,
                     });
                     ws.send({
                       type: 'session-created',
