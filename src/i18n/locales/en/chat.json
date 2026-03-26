@@ -110,6 +110,7 @@
     "attachFiles": "Attach files",
     "attachImages": "Attach images",
     "dropFilesHere": "Drop files here",
+    "attachmentOnlyFallback": "Please inspect the attached files and help me with them.",
     "send": "Send",
     "stop": "Stop",
     "hintText": {

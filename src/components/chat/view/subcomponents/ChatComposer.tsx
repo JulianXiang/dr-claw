@@ -24,6 +24,10 @@ interface MentionableFile {
   path: string;
 }
 
+function getFileKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 interface SlashCommand {
   name: string;
   description?: string;
@@ -229,11 +233,20 @@ export default function ChatComposer({
                   key={index}
                   file={file}
                   onRemove={() => onRemoveFile(index)}
-                  uploadProgress={uploadingFiles.get(`${file.name}:${file.size}:${file.lastModified}`)}
-                  error={fileErrors.get(`${file.name}:${file.size}:${file.lastModified}`)}
+                  uploadProgress={uploadingFiles.get(getFileKey(file))}
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {fileErrors.size > 0 && (
+          <div className="mb-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-600">
+            {[...new Set(fileErrors.values())].map((error) => (
+              <div key={error} className="truncate">
+                {error}
+              </div>
+            ))}
           </div>
         )}
 
@@ -327,7 +340,7 @@ export default function ChatComposer({
 
             <button
               type="submit"
-              disabled={!input.trim() || isLoading}
+              disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
               onMouseDown={(event) => {
                 event.preventDefault();
                 onSubmit(event);

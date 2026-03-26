@@ -110,6 +110,7 @@
     "attachFiles": "附加文件",
     "attachImages": "附加图片",
     "dropFilesHere": "拖放文件到此处",
+    "attachmentOnlyFallback": "请先查看我附上的文件，并基于这些文件帮助我。",
     "send": "发送",
     "stop": "停止",
     "hintText": {

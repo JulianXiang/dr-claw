@@ -212,7 +212,13 @@ const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFile
             {visibleAttachments.length > 0 && (
               <div className="mt-2 flex flex-col gap-2">
                 {visibleAttachments.map((attachment, idx) => {
-                  const Icon = attachment.kind === 'pdf' ? FileText : FileImage;
+                  const Icon = attachment.kind === 'image' ? FileImage : FileText;
+                  const attachmentDescription =
+                    attachment.kind === 'pdf'
+                      ? 'PDF uploaded to workspace'
+                      : attachment.kind === 'image'
+                      ? 'Image uploaded to workspace'
+                      : 'File uploaded to workspace';
                   return (
                     <div
                       key={`${attachment.name}:${attachment.path || idx}`}
@@ -221,9 +227,7 @@ const MessageComponent = memo(({ message, index, prevMessage, createDiff, onFile
                       <Icon className="mt-0.5 h-4 w-4 flex-shrink-0 opacity-80" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{attachment.name}</div>
-                        <div className="text-xs opacity-75">
-                          {attachment.kind === 'pdf' ? 'PDF uploaded to workspace' : 'Image uploaded to workspace'}
-                        </div>
+                        <div className="text-xs opacity-75">{attachmentDescription}</div>
                         {attachment.path && (
                           <div className="mt-1 break-all font-mono text-[11px] opacity-70">
                             {attachment.path}

@@ -10,6 +10,8 @@ import type {
   TouchEvent,
 } from 'react';
 import { useDropzone } from 'react-dropzone';
+import type { FileRejection } from 'react-dropzone';
+import { useTranslation } from 'react-i18next';
 import { authenticatedFetch } from '../../../utils/api';
 import { isTelemetryEnabled } from '../../../utils/telemetry';
 
@@ -95,7 +97,7 @@ const createFakeSubmitEvent = () => {
 const PROGRAMMATIC_SUBMIT_MAX_RETRIES = 12;
 const PROGRAMMATIC_SUBMIT_RETRY_DELAY_MS = 50;
 const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
 const CODEX_ATTACHMENT_DIR = '.dr-claw/chat-attachments';
 
 const IMAGE_EXTENSIONS = new Set([
@@ -137,7 +139,26 @@ function getAttachmentKind(file: File) {
   if (isPdfAttachment(file)) {
     return 'pdf';
   }
-  return 'unsupported';
+  return 'file';
+}
+
+function formatRejectedFileMessage(rejection: FileRejection) {
+  const attachmentKey = getAttachmentKey(rejection.file);
+  const name = rejection.file?.name || 'Unknown file';
+  const messages = rejection.errors.map((error) => {
+    if (error.code === 'file-too-large') {
+      return 'File too large (max 50MB)';
+    }
+    if (error.code === 'too-many-files') {
+      return 'Too many files (max 5)';
+    }
+    return error.message;
+  });
+
+  return {
+    attachmentKey,
+    message: `${name}: ${messages.join(', ') || 'File rejected'}`,
+  };
 }
 
 const isTemporarySessionId = (sessionId: string | null | undefined) =>
@@ -191,6 +212,7 @@ export function useChatComposerState({
   setPendingPermissionRequests,
   newSessionMode = 'research',
 }: UseChatComposerStateArgs) {
+  const { t } = useTranslation('chat');
   const [input, setInput] = useState(() => {
     if (typeof window !== 'undefined' && selectedProject) {
       return safeLocalStorage.getItem(`draft_input_${selectedProject.name}`) || '';
@@ -523,21 +545,20 @@ export function useChatComposerState({
         }
 
         const attachmentKey = getAttachmentKey(file);
-        const attachmentKind = getAttachmentKind(file);
 
-        if (!file.size || file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        if (!file.size) {
           setFileErrors((previous) => {
             const next = new Map(previous);
-            next.set(attachmentKey, 'File too large (max 10MB)');
+            next.set(attachmentKey, `${file.name || 'Unknown file'}: Empty files are not supported`);
             return next;
           });
           return;
         }
 
-        if (attachmentKind === 'unsupported') {
+        if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
           setFileErrors((previous) => {
             const next = new Map(previous);
-            next.set(attachmentKey, 'Only images and PDF files are supported');
+            next.set(attachmentKey, `${file.name || 'Unknown file'}: File too large (max 50MB)`);
             return next;
           });
           return;
@@ -550,6 +571,14 @@ export function useChatComposerState({
     });
 
     if (validFiles.length > 0) {
+      setFileErrors((previous) => {
+        const next = new Map(previous);
+        validFiles.forEach((file) => {
+          next.delete(getAttachmentKey(file));
+        });
+        return next;
+      });
+
       setAttachedFiles((previous) => {
         const deduped = [...previous];
         validFiles.forEach((file) => {
@@ -561,6 +590,21 @@ export function useChatComposerState({
         return deduped.slice(0, MAX_ATTACHMENTS);
       });
     }
+  }, []);
+
+  const handleRejectedFiles = useCallback((rejections: FileRejection[]) => {
+    if (!Array.isArray(rejections) || rejections.length === 0) {
+      return;
+    }
+
+    setFileErrors((previous) => {
+      const next = new Map(previous);
+      rejections.forEach((rejection) => {
+        const { attachmentKey, message } = formatRejectedFileMessage(rejection);
+        next.set(attachmentKey, message);
+      });
+      return next;
+    });
   }, []);
 
   const removeAttachedFile = useCallback((index: number) => {
@@ -610,15 +654,11 @@ export function useChatComposerState({
     [handleAttachmentFiles],
   );
 
-
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif'],
-      'application/pdf': ['.pdf'],
-    },
     maxSize: MAX_ATTACHMENT_SIZE_BYTES,
     maxFiles: MAX_ATTACHMENTS,
     onDrop: handleAttachmentFiles,
+    onDropRejected: handleRejectedFiles,
     noClick: true,
     noKeyboard: true,
   });
@@ -685,7 +725,7 @@ export function useChatComposerState({
     ) => {
       event.preventDefault();
       const currentInput = inputValueRef.current;
-      if (!currentInput.trim() || isLoading || !selectedProject) {
+      if ((!currentInput.trim() && attachedFiles.length === 0) || isLoading || !selectedProject) {
         return;
       }
 
@@ -711,10 +751,15 @@ export function useChatComposerState({
         }
       }
 
-      let messageContent = currentInput;
+      const normalizedInput =
+        currentInput.trim() ||
+        t('input.attachmentOnlyFallback', {
+          defaultValue: 'Please inspect the attached files and help me with them.',
+        });
+      let messageContent = normalizedInput;
       const selectedThinkingMode = thinkingModes.find((mode: { id: string; prefix?: string }) => mode.id === thinkingMode);
       if (selectedThinkingMode && selectedThinkingMode.prefix) {
-        messageContent = `${selectedThinkingMode.prefix}: ${currentInput}`;
+        messageContent = `${selectedThinkingMode.prefix}: ${normalizedInput}`;
       }
 
       // Inject intake greeting context for the first message after auto-intake
@@ -740,21 +785,45 @@ export function useChatComposerState({
         | undefined;
       let messageAttachments: ChatAttachment[] = [];
 
-      if (provider === 'cursor' && attachedFiles.length > 0) {
-        setChatMessages((previous) => [
-          ...previous,
-          {
-            type: 'error',
-            content: 'Cursor chat attachments are not supported yet.',
-            timestamp: new Date(),
-          },
-        ]);
-        return;
-      }
+      if (attachedFiles.length > 0) {
+        let uploadedFiles: UploadedProjectFile[] = [];
 
-      if (provider === 'codex' && attachedFiles.length > 0) {
         try {
-          const uploadedFiles = await uploadFilesToProject(attachedFiles);
+          uploadedFiles = await uploadFilesToProject(attachedFiles);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          console.error('File upload failed:', error);
+          setChatMessages((previous) => [
+            ...previous,
+            {
+              type: 'error',
+              content: `Failed to upload files: ${message}`,
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
+
+        messageAttachments = attachedFiles.map((file, index) => {
+          const uploadedFile = uploadedFiles[index];
+          const uploadedPath = uploadedFile?.path && typeof uploadedFile.path === 'string' ? uploadedFile.path : undefined;
+
+          return {
+            name: file.name,
+            kind: getAttachmentKind(file),
+            mimeType: file.type || undefined,
+            path: uploadedPath,
+          };
+        });
+
+        if (uploadedFiles.length > 0) {
+          const fileNote = `\n\n[Files available at the following paths]\n${uploadedFiles
+            .map((file, index) => `${index + 1}. ${file.path}`)
+            .join('\n')}`;
+          messageContent = `${messageContent}${fileNote}`;
+        }
+
+        if (provider === 'codex') {
           codexAttachmentPayload = uploadedFiles.reduce(
             (
               accumulator: {
@@ -785,52 +854,22 @@ export function useChatComposerState({
               documentPaths: [] as string[],
             },
           );
-          messageAttachments = attachedFiles.map((file, index) => {
-            const uploadedFile = uploadedFiles[index];
-            const uploadedPath = uploadedFile?.path && typeof uploadedFile.path === 'string' ? uploadedFile.path : undefined;
-
-            return {
-              name: file.name,
-              kind: isImageAttachment(file) ? 'image' : 'pdf',
-              mimeType: file.type || undefined,
-              path: uploadedPath,
-            };
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          console.error('Codex attachment upload failed:', error);
-          setChatMessages((previous) => [
-            ...previous,
-            {
-              type: 'error',
-              content: `Failed to upload attachments for Codex: ${message}`,
-              timestamp: new Date(),
-            },
-          ]);
-          return;
         }
-      } else if (attachedFiles.length > 0) {
-        try {
-          uploadedImages = await uploadPreviewImages(attachedFiles);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          console.error('Image upload failed:', error);
-          setChatMessages((previous) => [
-            ...previous,
-            {
-              type: 'error',
-              content: `Failed to upload images: ${message}`,
-              timestamp: new Date(),
-            },
-          ]);
-          return;
+
+        const imageFiles = attachedFiles.filter((file) => isImageAttachment(file));
+        if (imageFiles.length > 0) {
+          try {
+            uploadedImages = await uploadPreviewImages(imageFiles);
+          } catch (error) {
+            console.error('Image preview upload failed:', error);
+          }
         }
       }
 
       const userMessage: ChatMessage = {
         type: 'user',
-        content: currentInput,
-        images: uploadedImages,
+        content: normalizedInput,
+        images: uploadedImages.length > 0 ? uploadedImages : undefined,
         attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
         timestamp: new Date(),
       };
@@ -955,7 +994,7 @@ export function useChatComposerState({
             resume: Boolean(effectiveSessionId),
             model: geminiModel,
             permissionMode,
-            images: uploadedImages,
+            images: uploadedImages.length > 0 ? uploadedImages : undefined,
             toolsSettings,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
@@ -992,7 +1031,7 @@ export function useChatComposerState({
             toolsSettings,
             permissionMode,
             model: claudeModel,
-            images: uploadedImages,
+            images: uploadedImages.length > 0 ? uploadedImages : undefined,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
           },
@@ -1039,6 +1078,7 @@ export function useChatComposerState({
       setIsUserScrolledUp,
       slashCommands,
       thinkingMode,
+      t,
       intakeGreeting,
       uploadFilesToProject,
       uploadPreviewImages,
@@ -1227,6 +1267,9 @@ export function useChatComposerState({
   const handleClearInput = useCallback(() => {
     setInput('');
     inputValueRef.current = '';
+    setAttachedFiles([]);
+    setUploadingFiles(new Map());
+    setFileErrors(new Map());
     resetCommandMenuState();
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';

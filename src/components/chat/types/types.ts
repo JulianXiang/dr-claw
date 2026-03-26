@@ -21,7 +21,7 @@ export interface ChatImage {
 
 export interface ChatAttachment {
   name: string;
-  kind: 'image' | 'pdf';
+  kind: 'image' | 'pdf' | 'file';
   mimeType?: string;
   path?: string;
   extractedTextPreview?: string;
