@@ -1811,19 +1811,44 @@ async function getSessionMessages(projectName, sessionId, limit = null, offset =
         try {
           const entry = JSON.parse(line);
           if (entry.role === 'system') continue;
-          if (entry.role === 'user' || entry.role === 'assistant') {
+          if (entry.role === 'user') {
             messages.push({
               type: 'message',
-              role: entry.role,
+              role: 'user',
               content: entry.content || '',
               timestamp: entry.ts,
             });
+          } else if (entry.role === 'assistant') {
+            // Emit text content as a message if present
+            if (entry.content) {
+              messages.push({
+                type: 'message',
+                role: 'assistant',
+                content: entry.content,
+                timestamp: entry.ts,
+              });
+            }
+            // Emit tool_use entries for each tool call (matches Codex/Claude history format)
+            if (Array.isArray(entry.tool_calls)) {
+              for (const tc of entry.tool_calls) {
+                let toolInput;
+                try { toolInput = tc.function?.arguments || '{}'; } catch { toolInput = '{}'; }
+                messages.push({
+                  type: 'tool_use',
+                  timestamp: entry.ts,
+                  toolName: tc.function?.name || 'unknown',
+                  toolInput,
+                  toolCallId: tc.id,
+                });
+              }
+            }
           } else if (entry.role === 'tool') {
             messages.push({
               type: 'tool_result',
               role: 'tool',
               content: entry.content,
               tool_call_id: entry.tool_call_id,
+              toolCallId: entry.tool_call_id,
               timestamp: entry.ts,
             });
           }

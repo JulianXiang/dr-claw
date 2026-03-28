@@ -360,8 +360,8 @@ async function executeTool(name, args, workingDir) {
 // Tool permission checking (mirrors Gemini/Claude pattern)
 // ---------------------------------------------------------------------------
 
-async function checkToolPermission(toolName, toolArgs, permissionMode, allowedTools, disallowedTools, ws, sessionId) {
-  if (permissionMode === 'bypassPermissions') return true;
+async function checkToolPermission(toolName, toolArgs, permissionMode, allowedTools, disallowedTools, ws, sessionId, skipPermissions = false) {
+  if (permissionMode === 'bypassPermissions' || skipPermissions) return true;
 
   if (disallowedTools.some((e) => matchesToolPermission(e, toolName, toolArgs))) return false;
 
@@ -574,6 +574,7 @@ export async function queryOpenRouter(command, options = {}, ws) {
     stageTagSource = 'task_context',
     systemPrompt: customSystemPrompt,
     permissionMode = 'bypassPermissions',
+    toolsSettings,
   } = options;
 
   const workingDirectory = cwd || projectPath || process.cwd();
@@ -592,8 +593,8 @@ export async function queryOpenRouter(command, options = {}, ws) {
 
   const currentSessionId = sessionId || `openrouter-${crypto.randomUUID()}`;
   const abortController = new AbortController();
-  const allowedTools = [];
-  const disallowedTools = [];
+  const allowedTools = [...(toolsSettings?.allowedTools || [])];
+  const disallowedTools = [...(toolsSettings?.disallowedTools || [])];
 
   try {
     // ── Pipeline initialization (same as Claude / Gemini) ──────────────
@@ -785,6 +786,7 @@ export async function queryOpenRouter(command, options = {}, ws) {
 
         const allowed = await checkToolPermission(
           tc.name, args, permissionMode, allowedTools, disallowedTools, ws, currentSessionId,
+          toolsSettings?.skipPermissions === true,
         );
 
         const output = allowed

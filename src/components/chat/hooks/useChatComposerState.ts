@@ -1060,6 +1060,7 @@ export function useChatComposerState({
             resume: Boolean(effectiveSessionId),
             model: openrouterModel,
             permissionMode,
+            toolsSettings,
             telemetryEnabled,
             sessionMode: isNewSession ? newSessionMode : selectedSession?.mode,
             stageTagKeys: pendingStageTagKeys,
