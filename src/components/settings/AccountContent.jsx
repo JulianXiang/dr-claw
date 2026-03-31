@@ -99,11 +99,21 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
   const [selectedGpu, setSelectedGpu] = useState(() =>
     localStorage.getItem('local-gpu-selected') || ''
   );
-  const [localServerUrl, setLocalServerUrl] = useState(() =>
-    localStorage.getItem('local-gpu-server-url') || 'http://localhost:8000'
-  );
+  const [localServerUrl, setLocalServerUrl] = useState(() => {
+    const saved = localStorage.getItem('local-gpu-server-url');
+    if (saved === 'http://localhost:8000') {
+      localStorage.setItem('local-gpu-server-url', 'http://localhost:11434');
+      return 'http://localhost:11434';
+    }
+    return saved || 'http://localhost:11434';
+  });
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployResult, setDeployResult] = useState(null);
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [pullModelName, setPullModelName] = useState('');
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullResult, setPullResult] = useState(null);
 
   const handleDetectGpus = useCallback(async () => {
     setIsDetectingGpu(true);
@@ -121,51 +131,99 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
         setGpuError(data.error || 'Could not detect GPUs');
       }
     } catch {
-      setGpuError('GPU detection backend not available yet. Configure your local inference server URL below.');
+      setGpuError('GPU detection not available.');
     } finally {
       setIsDetectingGpu(false);
     }
   }, [selectedGpu]);
 
-  useEffect(() => {
-    if (agent === 'local' && !gpuInfo && !gpuError) {
-      handleDetectGpus();
-    }
-  }, [agent, gpuInfo, gpuError, handleDetectGpus]);
+  const handleLoadOllamaModels = useCallback(async () => {
+    setIsLoadingModels(true);
+    try {
+      const res = await authenticatedFetch(`/api/cli/local/models?serverUrl=${encodeURIComponent(localServerUrl)}`);
+      const data = await res.json();
+      if (res.ok && data.models) {
+        setOllamaModels(data.models);
+        if (data.hasGpu && data.models.length > 0) {
+          const smallModels = data.models.filter(m => m.sizeB && m.sizeB <= 14);
+          if (smallModels.length > 0 && !localStorage.getItem('local-model')) {
+            localStorage.setItem('local-model', smallModels[0].name);
+          }
+        }
+      }
+    } catch {}
+    setIsLoadingModels(false);
+  }, [localServerUrl]);
 
-  const handleSaveLocalConfig = () => {
+  useEffect(() => {
+    if (agent === 'local') {
+      handleDetectGpus();
+      handleLoadOllamaModels();
+    }
+  }, [agent, handleDetectGpus, handleLoadOllamaModels]);
+
+  const handleSaveLocalConfig = async () => {
     localStorage.setItem('local-gpu-server-url', localServerUrl);
     localStorage.setItem('local-gpu-selected', selectedGpu);
-    setDeployResult({ success: true, message: 'Local GPU configuration saved.' });
+    try {
+      await authenticatedFetch('/api/cli/local/save-config', {
+        method: 'POST',
+        body: JSON.stringify({ serverUrl: localServerUrl }),
+      });
+    } catch {}
+    setDeployResult({ success: true, message: 'Configuration saved.' });
+    handleLoadOllamaModels();
+    if (typeof onLogin === 'function') onLogin();
   };
 
   const handleTestConnection = async () => {
     setIsDeploying(true);
     setDeployResult(null);
     try {
-      const url = localServerUrl.replace(/\/+$/, '');
-      const res = await fetch(`${url}/v1/models`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const modelCount = data.data?.length || 0;
+      const res = await authenticatedFetch(`/api/cli/local/models?serverUrl=${encodeURIComponent(localServerUrl)}`);
+      const data = await res.json();
+      if (res.ok && data.models) {
+        setOllamaModels(data.models);
         setDeployResult({
           success: true,
-          message: `Connected! Server has ${modelCount} model${modelCount !== 1 ? 's' : ''} available.`,
+          message: `Connected! Ollama has ${data.models.length} model${data.models.length !== 1 ? 's' : ''} available.${data.hasGpu ? ' GPU detected.' : ''}`,
         });
       } else {
-        setDeployResult({ success: false, message: `Server responded with status ${res.status}` });
+        setDeployResult({ success: false, message: data.error || 'Could not connect' });
       }
     } catch (err) {
       setDeployResult({
         success: false,
-        message: `Cannot reach ${localServerUrl}. Make sure your inference server (vLLM, Ollama, etc.) is running.`,
+        message: `Cannot reach Ollama at ${localServerUrl}. Run: ollama serve`,
       });
     } finally {
       setIsDeploying(false);
+      if (typeof onLogin === 'function') onLogin();
+    }
+  };
+
+  const handlePullModel = async () => {
+    if (!pullModelName.trim()) return;
+    setIsPulling(true);
+    setPullResult(null);
+    try {
+      const res = await authenticatedFetch('/api/cli/local/pull-model', {
+        method: 'POST',
+        body: JSON.stringify({ modelName: pullModelName.trim(), serverUrl: localServerUrl }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPullResult({ success: true, message: data.message || `Pulled "${pullModelName}" successfully.` });
+        setPullModelName('');
+        handleLoadOllamaModels();
+      } else {
+        setPullResult({ success: false, message: data.error || 'Failed to pull model' });
+      }
+    } catch (err) {
+      setPullResult({ success: false, message: err.message });
+    } finally {
+      setIsPulling(false);
+      if (typeof onLogin === 'function') onLogin();
     }
   };
 
@@ -629,25 +687,26 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
 
                 {gpuInfo && gpuInfo.gpus && gpuInfo.gpus.length === 0 && (
                   <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5 text-sm text-muted-foreground">
-                    No GPUs detected on this machine.
+                    No GPUs detected on this machine. Models will run on CPU.
                   </div>
                 )}
               </div>
 
-              {/* Inference Server URL */}
+              {/* Ollama Server */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Server className="w-4 h-4 text-emerald-500" />
-                  <div className={`font-medium ${config.textClass}`}>Inference Server</div>
+                  <div className={`font-medium ${config.textClass}`}>Ollama Server</div>
                 </div>
                 <p className={`text-sm ${config.subtextClass} mb-3`}>
-                  Connect to a local inference server running vLLM, Ollama, TGI, or any OpenAI-compatible API.
+                  Connect to Ollama to run open-source models locally.
+                  {gpuInfo?.gpus?.length > 0 && ' GPU-accelerated models ≤14B will be auto-selected.'}
                 </p>
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm text-gray-600 dark:text-gray-400 block mb-1">Server URL</label>
                     <Input
-                      placeholder="http://localhost:8000"
+                      placeholder="http://localhost:11434"
                       value={localServerUrl}
                       onChange={e => setLocalServerUrl(e.target.value)}
                     />
@@ -667,7 +726,7 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
                       size="sm"
                       className={`${config.buttonClass} text-white flex-1`}
                     >
-                      Save Configuration
+                      Save & Refresh
                     </Button>
                   </div>
                   {deployResult && (
@@ -675,14 +734,125 @@ export default function AccountContent({ agent, authStatus, onLogin }) {
                       {deployResult.message}
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                    <p className="font-medium">Supported servers:</p>
-                    <ul className="list-disc list-inside space-y-0.5 text-muted-foreground/80">
-                      <li><a href="https://docs.vllm.ai" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">vLLM</a> — <code className="text-[10px]">vllm serve model-name</code></li>
-                      <li><a href="https://ollama.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Ollama</a> — <code className="text-[10px]">ollama serve</code> (default: localhost:11434)</li>
-                      <li><a href="https://huggingface.co/docs/text-generation-inference" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">TGI</a> — HuggingFace Text Generation Inference</li>
-                      <li>Any OpenAI-compatible API endpoint</li>
-                    </ul>
+                </div>
+              </div>
+
+              {/* Installed Models */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-emerald-500" />
+                    <div className={`font-medium ${config.textClass}`}>Installed Models</div>
+                  </div>
+                  <Button
+                    onClick={handleLoadOllamaModels}
+                    disabled={isLoadingModels}
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-1.5 ${isLoadingModels ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+
+                {ollamaModels.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {ollamaModels.map((m) => {
+                      const currentModel = localStorage.getItem('local-model') || '';
+                      const isSelected = currentModel === m.name;
+                      const isSmall = m.sizeB && m.sizeB <= 14;
+                      return (
+                        <button
+                          key={m.name}
+                          onClick={() => {
+                            localStorage.setItem('local-model', m.name);
+                            setDeployResult({ success: true, message: `Selected model: ${m.name}` });
+                          }}
+                          className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
+                            isSelected
+                              ? 'border-emerald-400 bg-emerald-50/50 dark:border-emerald-600 dark:bg-emerald-900/20 ring-1 ring-emerald-400/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                              <span className="text-sm font-medium text-foreground">{m.displayName || m.name}</span>
+                              {m.quantization && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-muted-foreground">
+                                  {m.quantization}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              {m.size && <span>{m.size}</span>}
+                              {isSmall && gpuInfo?.gpus?.length > 0 && (
+                                <span className="text-emerald-600 dark:text-emerald-400 font-medium">GPU OK</span>
+                              )}
+                            </div>
+                          </div>
+                          {m.family && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5 pl-4">{m.family}</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-3 text-sm text-muted-foreground text-center">
+                    {isLoadingModels ? 'Loading models...' : 'No models found. Pull a model below or run: ollama pull qwen3:8b'}
+                  </div>
+                )}
+              </div>
+
+              {/* Pull New Model */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <HardDrive className="w-4 h-4 text-emerald-500" />
+                  <div className={`font-medium ${config.textClass}`}>Pull New Model</div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. qwen3:8b, llama3.2, deepseek-r1:7b"
+                      value={pullModelName}
+                      onChange={e => setPullModelName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handlePullModel(); }}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handlePullModel}
+                      disabled={isPulling || !pullModelName.trim()}
+                      size="sm"
+                      className={`${config.buttonClass} text-white`}
+                    >
+                      {isPulling ? 'Pulling...' : 'Pull'}
+                    </Button>
+                  </div>
+                  {pullResult && (
+                    <div className={`text-sm ${pullResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {pullResult.message}
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p className="font-medium">Recommended models for GPU ≤14B:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['qwen3:8b', 'llama3.2:latest', 'deepseek-r1:7b', 'gemma3:12b', 'phi4:latest', 'codestral:latest'].map(name => (
+                        <button
+                          key={name}
+                          onClick={() => setPullModelName(name)}
+                          className="text-[10px] px-2 py-1 rounded-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2">
+                      <a href="https://ollama.com/library" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                        Browse all models at ollama.com/library
+                      </a>
+                    </p>
                   </div>
                 </div>
               </div>

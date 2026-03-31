@@ -1143,7 +1143,7 @@ export function useChatComposerState({
             sessionId: effectiveSessionId,
             resume: Boolean(effectiveSessionId),
             model: localModel,
-            serverUrl: localStorage.getItem('local-gpu-server-url') || 'http://localhost:8000',
+            serverUrl: localStorage.getItem('local-gpu-server-url') || 'http://localhost:11434',
             gpuId: localStorage.getItem('local-gpu-selected') || undefined,
             permissionMode,
             toolsSettings,

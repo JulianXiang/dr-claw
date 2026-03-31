@@ -76,6 +76,7 @@ export interface Project {
   codexSessions?: ProjectSession[];
   geminiSessions?: ProjectSession[];
   openrouterSessions?: ProjectSession[];
+  localSessions?: ProjectSession[];
   sessionMeta?: ProjectSessionMeta;
   taskmaster?: ProjectTaskmasterInfo;
   [key: string]: unknown;

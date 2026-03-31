@@ -153,6 +153,34 @@ export default function ProviderSelectionEmptyState({
     },
   ];
 
+  const [ollamaModels, setOllamaModels] = useState<Array<{ value: string; label: string }>>([]);
+  const [isLoadingOllamaModels, setIsLoadingOllamaModels] = useState(false);
+
+  useEffect(() => {
+    if (provider !== 'local') return;
+    setIsLoadingOllamaModels(true);
+    const serverUrl = localStorage.getItem('local-gpu-server-url') || 'http://localhost:11434';
+    authenticatedFetch(`/api/cli/local/models?serverUrl=${encodeURIComponent(serverUrl)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.models?.length) {
+          const opts = data.models.map((m: any) => ({
+            value: m.name,
+            label: `${m.displayName || m.name}${m.size ? ` (${m.size})` : ''}`,
+          }));
+          setOllamaModels(opts);
+          if (!localModel && opts.length > 0) {
+            const small = data.models.find((m: any) => m.sizeB && m.sizeB <= 14);
+            const pick = small ? small.name : opts[0].value;
+            setLocalModel(pick);
+            localStorage.setItem('local-model', pick);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingOllamaModels(false));
+  }, [provider, localModel, setLocalModel]);
+
   const selectProvider = (next: SessionProvider) => {
     if (providerAvailability[next]?.cliAvailable === false) {
       return;
@@ -172,7 +200,10 @@ export default function ProviderSelectionEmptyState({
     else { setCursorModel(value); localStorage.setItem('cursor-model', value); }
   };
 
-  const modelConfig = getModelConfig(provider);
+  const rawModelConfig = getModelConfig(provider);
+  const modelConfig = provider === 'local' && ollamaModels.length > 0
+    ? { ...rawModelConfig, OPTIONS: ollamaModels }
+    : rawModelConfig;
   const currentModel = getModelValue(provider, claudeModel, cursorModel, codexModel, geminiModel, openrouterModel, localModel);
   const readyPromptKey =
     provider === 'claude'
@@ -331,6 +362,10 @@ export default function ProviderSelectionEmptyState({
                         options={modelConfig.OPTIONS}
                         onChange={handleModelChange}
                       />
+                    ) : (modelConfig as any).IS_LOCAL && modelConfig.OPTIONS.length === 0 ? (
+                      <span className="text-[11px] text-muted-foreground/60 px-3 py-1 border border-border/60 rounded-lg">
+                        {isLoadingOllamaModels ? 'Loading Ollama models...' : 'No models — run ollama pull qwen3:8b'}
+                      </span>
                     ) : (
                       <select
                         value={currentModel}

@@ -168,13 +168,13 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
     loading: true,
     error: null
   });
-  const [localAuthStatus] = useState({
-    authenticated: !!localStorage.getItem('local-gpu-server-url'),
-    email: localStorage.getItem('local-gpu-server-url') || null,
+  const [localAuthStatus, setLocalAuthStatus] = useState({
+    authenticated: false,
+    email: null,
     cliAvailable: true,
     cliCommand: null,
     installHint: null,
-    loading: false,
+    loading: true,
     error: null
   });
 
@@ -566,6 +566,7 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
       checkCodexAuthStatus();
       checkGeminiAuthStatus();
       checkOpenRouterAuthStatus();
+      checkLocalAuthStatus();
       setActiveTab(VALID_SETTINGS_TABS.has(initialTab) ? initialTab : 'agents');
     }
   }, [isOpen, initialTab]);
@@ -860,6 +861,51 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
         cliCommand: 'openrouter',
         error: error.message
       }));
+    }
+  };
+
+  const checkLocalAuthStatus = async () => {
+    try {
+      const response = await authenticatedFetch('/api/cli/local/status');
+
+      if (response.ok) {
+        const data = await response.json();
+        setLocalAuthStatus({
+          authenticated: data.authenticated,
+          email: data.email,
+          cliAvailable: true,
+          cliCommand: null,
+          installHint: data.installHint || null,
+          loading: false,
+          error: data.error || null
+        });
+        writeCliAvailability('local', {
+          cliAvailable: true,
+          cliCommand: null,
+          installHint: data.installHint || null,
+        });
+      } else {
+        setLocalAuthStatus({
+          authenticated: false,
+          email: null,
+          cliAvailable: true,
+          cliCommand: null,
+          installHint: 'Install Ollama from https://ollama.com',
+          loading: false,
+          error: 'Could not check Ollama status'
+        });
+      }
+    } catch (error) {
+      console.error('Error checking Local GPU auth status:', error);
+      setLocalAuthStatus({
+        authenticated: false,
+        email: null,
+        cliAvailable: true,
+        cliCommand: null,
+        installHint: 'Install Ollama from https://ollama.com',
+        loading: false,
+        error: error.message
+      });
     }
   };
 
@@ -1715,7 +1761,7 @@ function Settings({ isOpen, onClose, projects = [], initialTab = 'agents' }) {
                           selectedAgent === 'cursor' ? handleCursorLogin :
                           selectedAgent === 'gemini' ? handleGeminiLogin :
                           selectedAgent === 'openrouter' ? (() => {}) :
-                          selectedAgent === 'local' ? (() => {}) :
+                          selectedAgent === 'local' ? checkLocalAuthStatus :
                           handleCodexLogin
                         }
                       />
