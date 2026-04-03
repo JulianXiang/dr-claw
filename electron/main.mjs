@@ -148,16 +148,24 @@ function wait(ms) {
 
 function isPortOpen(host, port) {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (open) => {
+      if (settled) return;
+      settled = true;
+      try {
+        socket.destroy();
+      } catch {
+        // ignore
+      }
+      resolve(open);
+    };
+
     const socket = net.createConnection({ host, port });
+    socket.setTimeout(5000);
 
-    socket.once('connect', () => {
-      socket.destroy();
-      resolve(true);
-    });
-
-    socket.once('error', () => {
-      resolve(false);
-    });
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
   });
 }
 
@@ -287,6 +295,12 @@ async function startServer() {
   env.PORT = String(selectedPort);
   const entrypoint = path.join(appRoot, 'server', 'index.js');
   const nodeBinary = resolveNodeBinary();
+
+  if (!fs.existsSync(entrypoint)) {
+    const message = `Server entrypoint not found: ${entrypoint}. If you are developing, run from the repo root. If packaged, reinstall the app.`;
+    logDesktop('Desktop server entrypoint missing', { entrypoint, appRoot });
+    throw new Error(message);
+  }
 
   logDesktop('Starting desktop server', {
     nodeBinary,
@@ -789,6 +803,10 @@ function createWindow(baseUrl) {
   mainWindow.on('move', debouncedSave);
 
   mainWindow.on('closed', () => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+      saveTimeout = null;
+    }
     logDesktop('BrowserWindow closed');
     mainWindow = null;
   });

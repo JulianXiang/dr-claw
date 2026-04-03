@@ -6,6 +6,13 @@ import os from 'os';
 import fetch from 'node-fetch';
 import { resolveCursorCliCommand } from '../utils/cursorCommand.js';
 import { resolveAvailableCliCommand } from '../utils/cliResolution.js';
+import {
+  DEFAULT_OLLAMA_URL,
+  detectGPUs,
+  checkOllamaStatus,
+  pullOllamaModel,
+  normalizeLocalOllamaBaseUrl,
+} from '../local-gpu.js';
 
 const router = express.Router();
 
@@ -1078,8 +1085,6 @@ router.post('/claude/verify-custom-api', async (req, res) => {
 // Local GPU / Ollama routes
 // ---------------------------------------------------------------------------
 
-import { detectGPUs, checkOllamaStatus, pullOllamaModel } from '../local-gpu.js';
-
 router.get('/local/gpu-info', async (req, res) => {
   try {
     const result = await detectGPUs();
@@ -1091,7 +1096,7 @@ router.get('/local/gpu-info', async (req, res) => {
 
 router.get('/local/status', async (req, res) => {
   try {
-    const serverUrl = process.env.LOCAL_GPU_SERVER_URL || 'http://localhost:11434';
+    const serverUrl = process.env.LOCAL_GPU_SERVER_URL || DEFAULT_OLLAMA_URL;
     const status = await checkOllamaStatus(serverUrl);
 
     if (status.running) {
@@ -1121,7 +1126,14 @@ router.get('/local/status', async (req, res) => {
 
 router.get('/local/models', async (req, res) => {
   try {
-    const serverUrl = req.query.serverUrl || process.env.LOCAL_GPU_SERVER_URL || 'http://localhost:11434';
+    let serverUrl;
+    try {
+      serverUrl = normalizeLocalOllamaBaseUrl(
+        req.query.serverUrl || process.env.LOCAL_GPU_SERVER_URL || DEFAULT_OLLAMA_URL,
+      );
+    } catch (e) {
+      return res.status(400).json({ error: e.message, models: [] });
+    }
     const status = await checkOllamaStatus(serverUrl);
     if (!status.running) {
       return res.status(503).json({ error: 'Ollama is not running', models: [] });
@@ -1152,7 +1164,14 @@ router.post('/local/pull-model', async (req, res) => {
     const { modelName, serverUrl } = req.body;
     if (!modelName) return res.status(400).json({ error: 'modelName is required' });
 
-    const url = serverUrl || process.env.LOCAL_GPU_SERVER_URL || 'http://localhost:11434';
+    let url;
+    try {
+      url = normalizeLocalOllamaBaseUrl(
+        serverUrl || process.env.LOCAL_GPU_SERVER_URL || DEFAULT_OLLAMA_URL,
+      );
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
     await pullOllamaModel(url, modelName);
     return res.json({ success: true, message: `Model "${modelName}" pulled successfully.` });
   } catch (error) {
@@ -1164,6 +1183,12 @@ router.post('/local/save-config', async (req, res) => {
   try {
     const { serverUrl } = req.body;
     if (serverUrl) {
+      let normalizedUrl;
+      try {
+        normalizedUrl = normalizeLocalOllamaBaseUrl(serverUrl);
+      } catch (e) {
+        return res.status(400).json({ error: e.message });
+      }
       const envPath = path.join(process.cwd(), '.env');
       let envContent = '';
       try { envContent = await fs.readFile(envPath, 'utf8'); } catch {}
@@ -1173,14 +1198,14 @@ router.post('/local/save-config', async (req, res) => {
       const newLines = lines.map(line => {
         if (line.trim().startsWith('LOCAL_GPU_SERVER_URL=')) {
           found = true;
-          return `LOCAL_GPU_SERVER_URL=${serverUrl}`;
+          return `LOCAL_GPU_SERVER_URL=${normalizedUrl}`;
         }
         return line;
       }).filter(l => l.trim() !== '' || found);
 
-      if (!found) newLines.push(`LOCAL_GPU_SERVER_URL=${serverUrl}`);
+      if (!found) newLines.push(`LOCAL_GPU_SERVER_URL=${normalizedUrl}`);
       await fs.writeFile(envPath, newLines.join('\n') + '\n');
-      process.env.LOCAL_GPU_SERVER_URL = serverUrl;
+      process.env.LOCAL_GPU_SERVER_URL = normalizedUrl;
     }
 
     return res.json({ success: true, message: 'Local GPU configuration saved.' });

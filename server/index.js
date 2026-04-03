@@ -437,8 +437,6 @@ app.get('/health', (req, res) => {
     response.desktop = {
       platform: process.platform,
       arch: process.arch,
-      workspacesRoot: process.env.WORKSPACES_ROOT || null,
-      runtimeDir: process.env.DR_CLAW_RUNTIME_DIR || null,
     };
   }
 
