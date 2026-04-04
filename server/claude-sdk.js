@@ -232,16 +232,18 @@ function extractTokenBudgetFromUsage(usage) {
   }
 
   // In Claude API: input_tokens is the non-cached portion.
-  // Total context = input_tokens + cache_read_input_tokens + cache_creation_input_tokens
+  // Total context = input_tokens + cache_read_input_tokens + cache_creation_input_tokens + output_tokens
+  // The context window is shared between input and output, matching Claude Code's calculation.
   const inputTokens = usage.input_tokens || 0;
   const cacheReadTokens = usage.cache_read_input_tokens || 0;
   const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
-  const totalUsed = inputTokens + cacheReadTokens + cacheCreationTokens;
+  const outputTokens = usage.output_tokens || 0;
+  const totalUsed = inputTokens + cacheReadTokens + cacheCreationTokens + outputTokens;
 
-  // Context window is the model's input limit
+  // Context window is the model's input+output limit
   const contextWindow = parseInt(process.env.CONTEXT_WINDOW) || 200000;
 
-  console.log(`Token calculation: input=${inputTokens}, cacheRead=${cacheReadTokens}, cacheCreation=${cacheCreationTokens}, total=${totalUsed}/${contextWindow}`);
+  console.log(`Token calculation: input=${inputTokens}, cacheRead=${cacheReadTokens}, cacheCreation=${cacheCreationTokens}, output=${outputTokens}, total=${totalUsed}/${contextWindow}`);
 
   return {
     used: totalUsed,

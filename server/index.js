@@ -2801,6 +2801,7 @@ app.get('/api/projects/:projectName/sessions/:sessionId/token-usage', authentica
     let inputTokens = 0;
     let cacheCreationTokens = 0;
     let cacheReadTokens = 0;
+    let outputTokens = 0;
     let modelName = null;
 
     // Find the latest assistant message with usage data (scan from end)
@@ -2816,6 +2817,7 @@ app.get('/api/projects/:projectName/sessions/:sessionId/token-usage', authentica
           inputTokens = usage.input_tokens || 0;
           cacheCreationTokens = usage.cache_creation_input_tokens || 0;
           cacheReadTokens = usage.cache_read_input_tokens || 0;
+          outputTokens = usage.output_tokens || 0;
           modelName = entry.message.model || null;
 
           break; // Stop after finding the latest assistant message
@@ -2860,8 +2862,8 @@ app.get('/api/projects/:projectName/sessions/:sessionId/token-usage', authentica
       contextWindow = 200000;
     }
 
-    // Calculate total context usage (excluding output_tokens, as per ccusage)
-    const totalUsed = inputTokens + cacheCreationTokens + cacheReadTokens;
+    // Calculate total context usage (including output_tokens, aligned with Claude Code)
+    const totalUsed = inputTokens + cacheCreationTokens + cacheReadTokens + outputTokens;
 
     res.json({
       used: totalUsed,
@@ -2870,7 +2872,8 @@ app.get('/api/projects/:projectName/sessions/:sessionId/token-usage', authentica
       breakdown: {
         input: inputTokens,
         cacheCreation: cacheCreationTokens,
-        cacheRead: cacheReadTokens
+        cacheRead: cacheReadTokens,
+        output: outputTokens
       }
     });
   } catch (error) {
