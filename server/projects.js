@@ -3504,26 +3504,32 @@ async function getCodexSessionMessages(sessionId, limit = null, offset = 0) {
   try {
     const codexSessionsDir = path.join(os.homedir(), '.codex', 'sessions');
 
-    // Find the session file by searching for the session ID
-    const findSessionFile = async (dir) => {
-      try {
-        const entries = await fs.readdir(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            const found = await findSessionFile(fullPath);
-            if (found) return found;
-          } else if (entry.name.includes(sessionId) && entry.name.endsWith('.jsonl')) {
-            return fullPath;
-          }
+    const findSessionFileByMetadata = async () => {
+      const jsonlFiles = await findCodexJsonlFiles(codexSessionsDir);
+
+      let filenameMatch = null;
+      for (const filePath of jsonlFiles) {
+        if (path.basename(filePath).includes(sessionId)) {
+          filenameMatch = filePath;
+          break;
         }
-      } catch (error) {
-        // Skip directories we can't read
       }
+
+      if (filenameMatch) {
+        return filenameMatch;
+      }
+
+      for (const filePath of jsonlFiles) {
+        const sessionData = await parseCodexSessionFile(filePath);
+        if (sessionData?.id === sessionId) {
+          return filePath;
+        }
+      }
+
       return null;
     };
 
-    const sessionFilePath = await findSessionFile(codexSessionsDir);
+    const sessionFilePath = await findSessionFileByMetadata();
 
     if (!sessionFilePath) {
       console.warn(`Codex session file not found for session ${sessionId}`);

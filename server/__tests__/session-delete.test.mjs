@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
@@ -15,6 +15,51 @@ async function loadTestModules() {
   const database = await import('../database/db.js');
   await database.initializeDatabase();
   return { projects, database };
+}
+
+async function writeCodexSessionFile({
+  relativePath,
+  sessionId,
+  cwd = '/tmp/test-project',
+  userMessage = 'Hello from Codex',
+  assistantMessage = 'Hi there',
+  timestamp = '2026-03-30T11:00:00.000Z',
+}) {
+  const sessionFile = path.join(tempRoot, '.codex', 'sessions', relativePath);
+  await mkdir(path.dirname(sessionFile), { recursive: true });
+
+  const lines = [
+    {
+      timestamp,
+      type: 'session_meta',
+      payload: {
+        id: sessionId,
+        timestamp,
+        cwd,
+        model: 'gpt-5.4',
+      },
+    },
+    {
+      timestamp,
+      type: 'event_msg',
+      payload: {
+        type: 'user_message',
+        message: userMessage,
+      },
+    },
+    {
+      timestamp,
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: assistantMessage }],
+      },
+    },
+  ].map((entry) => JSON.stringify(entry)).join('\n');
+
+  await writeFile(sessionFile, `${lines}\n`, 'utf8');
+  return sessionFile;
 }
 
 describe('session deletion fallbacks', () => {
@@ -77,5 +122,45 @@ describe('session deletion fallbacks', () => {
 
     await expect(projects.deleteCodexSession(sessionId)).resolves.toBe(true);
     expect(database.sessionDb.getSessionById(sessionId)).toBeNull();
+  });
+
+  it('reads Codex session messages by embedded metadata when the filename lookup key differs', async () => {
+    const { projects } = await loadTestModules();
+    const sessionId = '019d3967-fcdc-7501-8441-f443c81e2de0';
+
+    await writeCodexSessionFile({
+      relativePath: path.join('2026', '03', '30', 'rollout-2026-03-30T07-43-29-mismatched-name.jsonl'),
+      sessionId,
+      cwd: path.join(tempRoot, 'workspace', 'proj-a'),
+      userMessage: 'Hello from regression test',
+      assistantMessage: 'Codex responded successfully',
+    });
+
+    const result = await projects.getCodexSessionMessages(sessionId);
+    expect(result.messages.length).toBeGreaterThanOrEqual(1);
+
+    const assistantMessages = result.messages.filter((entry) => entry?.message?.role === 'assistant');
+
+    expect(assistantMessages.some((entry) => entry.message.content.includes('Codex responded successfully'))).toBe(true);
+  });
+
+  it('indexes Codex sessions using the real session id from metadata', async () => {
+    const { projects } = await loadTestModules();
+    const sessionId = '019d3967-a181-7171-9e9f-7b73811c0d71';
+    const projectPath = path.join(tempRoot, 'workspace', 'proj-b');
+
+    await writeCodexSessionFile({
+      relativePath: path.join('2026', '03', '30', `rollout-2026-03-30T07-43-06-${sessionId}.jsonl`),
+      sessionId,
+      cwd: projectPath,
+      userMessage: 'Inspect the project state',
+      assistantMessage: 'I found the pipeline files',
+    });
+
+    const sessions = await projects.getCodexSessions(projectPath, { limit: 10 });
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].id).toBe(sessionId);
+    expect(sessions[0].provider).toBe('codex');
+    expect(sessions[0].summary).toContain('Inspect the project state');
   });
 });
