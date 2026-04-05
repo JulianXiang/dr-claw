@@ -244,9 +244,9 @@ node server/cli.js chat --model anthropic/claude-sonnet-4 --key sk-or-your-key
 如果后续 Agent 网页搜索不可用，请查看[网页搜索排障](#troubleshooting-web-search-zh)。
 
 ## 接入 OpenClaw
+<details>
+<summary><span style="font-size: 1.17em; font-weight: 600;">把 Dr. Claw 变成移动端友好、支持语音的研究秘书</span></summary>
 
-> **把 Dr. Claw 变成移动端友好、支持语音的研究秘书。**
->
 > OpenClaw 通过 `drclaw` CLI 连接 Dr. Claw，提供项目控制、智能摘要和主动通知 — 随时随地在手机或聊天中使用。
 
 ### 架构
@@ -454,6 +454,7 @@ agent-harness/skills/dr-claw/scripts/openclaw_drclaw_turn.sh \
 > *”给我一个跨项目进展汇总，推荐今天优先处理什么。”*
 > *”我有个新想法 — 建个项目，和我讨论清楚，然后开始规划。”*
 
+</details>
 
 ## 配置说明
 

@@ -249,9 +249,9 @@ Browse all available models at [openrouter.ai/models](https://openrouter.ai/mode
 If agent web search does not work later, see [Troubleshooting Web Search](#troubleshooting-web-search) below.
 
 ## OpenClaw Integration
+<details>
+<summary><span style="font-size: 1.17em; font-weight: 600;">Turn Dr. Claw into a mobile-ready, voice-friendly research secretary</span></summary>
 
-> **Turn Dr. Claw into a mobile-ready, voice-friendly research secretary.**
->
 > OpenClaw connects to Dr. Claw through the `drclaw` CLI, giving you project control, smart digests, and proactive notifications — all from your phone or chat app.
 
 ### Architecture
@@ -462,6 +462,7 @@ At that point, OpenClaw becomes Dr. Claw's mobile secretary. Users can speak nat
 > *”Give me a cross-project summary and what to focus on today.”*
 > *”I have a new idea — create a project, discuss it with me, and start planning.”*
 
+</details>
 
 ## Configuration
 
