@@ -40,11 +40,13 @@ export default function AppContent() {
 
   const {
     projects,
+    trashProjects,
     selectedProject,
     selectedSession,
     activeTab,
     sidebarOpen,
     isLoadingProjects,
+    isLoadingTrashProjects,
     isInputFocused,
     externalMessageUpdate,
     importedProjectAnalysisPrompt,
@@ -56,10 +58,12 @@ export default function AppContent() {
     setShowSettings,
     openSettings,
     fetchProjects,
+    fetchTrashProjects,
     sidebarSharedProps,
     handleProjectSelect,
     handleNavigateToSession,
     handleStartWorkspaceQa,
+    handleChatFromReference,
     pendingAutoIntake,
     handleProjectCreatedWithIntake,
     clearPendingAutoIntake,
@@ -92,6 +96,16 @@ export default function AppContent() {
       }
     };
   }, [fetchProjects]);
+
+  useEffect(() => {
+    window.refreshTrashProjects = fetchTrashProjects;
+
+    return () => {
+      if (window.refreshTrashProjects === fetchTrashProjects) {
+        delete window.refreshTrashProjects;
+      }
+    };
+  }, [fetchTrashProjects]);
 
   useEffect(() => {
     window.openSettings = openSettings;
@@ -228,6 +242,7 @@ export default function AppContent() {
       <div className={`flex-1 flex flex-col min-w-0 ${isMobile ? 'pb-mobile-nav' : ''}`}>
         <MainContent
           projects={projects}
+          trashProjects={trashProjects}
           selectedProject={selectedProject}
           selectedSession={selectedSession}
           activeTab={activeTab}
@@ -238,6 +253,7 @@ export default function AppContent() {
           isMobile={isMobile}
           onMenuClick={() => setSidebarOpen(true)}
           isLoading={isLoadingProjects}
+          isTrashLoading={isLoadingTrashProjects}
           onInputFocusChange={setIsInputFocused}
           onSessionActive={markSessionAsActive}
           onSessionInactive={markSessionAsInactive}
@@ -255,6 +271,7 @@ export default function AppContent() {
           clearImportedProjectAnalysisPrompt={clearImportedProjectAnalysisPrompt}
           onProjectSelect={handleProjectSelect}
           onStartWorkspaceQa={handleStartWorkspaceQa}
+          onChatFromReference={handleChatFromReference}
           newSessionMode={newSessionMode}
           onNewSessionModeChange={setNewSessionMode}
         />

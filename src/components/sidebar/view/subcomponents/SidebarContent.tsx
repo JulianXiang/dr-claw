@@ -18,10 +18,12 @@ type SidebarContentProps = {
   isRefreshing: boolean;
   activeTab: AppTab;
   onOpenDashboard: () => void;
+  onOpenTrash: () => void;
   onOpenSkills: () => void;
   onOpenNews: () => void;
   onCreateProject: () => void;
   onCollapseSidebar: () => void;
+  currentVersion: string;
   updateAvailable: boolean;
   releaseInfo: ReleaseInfo | null;
   latestVersion: string | null;
@@ -44,10 +46,12 @@ export default function SidebarContent({
   isRefreshing,
   activeTab,
   onOpenDashboard,
+  onOpenTrash,
   onOpenSkills,
   onOpenNews,
   onCreateProject,
   onCollapseSidebar,
+  currentVersion,
   updateAvailable,
   releaseInfo,
   latestVersion,
@@ -74,6 +78,7 @@ export default function SidebarContent({
         isRefreshing={isRefreshing}
         activeTab={activeTab}
         onOpenDashboard={onOpenDashboard}
+        onOpenTrash={onOpenTrash}
         onOpenSkills={onOpenSkills}
         onOpenNews={onOpenNews}
         onCreateProject={onCreateProject}
@@ -86,6 +91,7 @@ export default function SidebarContent({
       </ScrollArea>
 
       <SidebarFooter
+        currentVersion={currentVersion}
         updateAvailable={updateAvailable}
         releaseInfo={releaseInfo}
         latestVersion={latestVersion}

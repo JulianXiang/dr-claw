@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDeviceSettings } from '../../../hooks/useDeviceSettings';
 import { useVersionCheck } from '../../../hooks/useVersionCheck';
@@ -40,11 +40,13 @@ function Sidebar({
   isMobile,
   activeTab,
   onOpenDashboard,
+  onOpenTrash,
   onOpenSkills,
   onOpenNews,
   onImportedProjectCreated,
   newSessionMode,
 }: SidebarProps) {
+  const versionReminderStorageKey = 'dr-claw.versionReminder';
   const { t } = useTranslation(['sidebar', 'common']);
   const { isPWA } = useDeviceSettings({ trackMobile: false });
   const { updateAvailable, latestVersion, currentVersion, releaseInfo, installMode } = useVersionCheck(
@@ -56,6 +58,7 @@ function Sidebar({
   const { setCurrentProject, mcpServerStatus } = useTaskMaster() as TaskMasterSidebarContext;
   const { tasksEnabled } = useTasksSettings();
   const { logout } = useAuth();
+  const [lastAutoPromptedVersion, setLastAutoPromptedVersion] = useState<string | null>(null);
 
   const {
     isSidebarCollapsed,
@@ -118,6 +121,44 @@ function Sidebar({
     setSidebarVisible: (visible) => setPreference('sidebarVisible', visible),
     sidebarVisible,
   });
+
+  useEffect(() => {
+    if (!updateAvailable || !latestVersion || typeof window === 'undefined') {
+      return;
+    }
+
+    const reminder = readVersionReminder(versionReminderStorageKey);
+    const isSameVersionSnoozed =
+      reminder?.version === latestVersion && reminder.remindAt > Date.now();
+
+    if (isSameVersionSnoozed) {
+      return;
+    }
+
+    if (lastAutoPromptedVersion === latestVersion) {
+      return;
+    }
+
+    if (reminder?.version === latestVersion) {
+      window.localStorage.removeItem(versionReminderStorageKey);
+    }
+
+    setShowVersionModal(true);
+    setLastAutoPromptedVersion(latestVersion);
+  }, [lastAutoPromptedVersion, latestVersion, setShowVersionModal, updateAvailable]);
+
+  const dismissVersionReminder = () => {
+    if (typeof window !== 'undefined' && latestVersion) {
+      window.localStorage.setItem(
+        versionReminderStorageKey,
+        JSON.stringify({
+          version: latestVersion,
+          remindAt: Date.now() + VERSION_REMINDER_DELAY_MS,
+        }),
+      );
+    }
+    setShowVersionModal(false);
+  };
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -198,6 +239,7 @@ function Sidebar({
         onConfirmDeleteSession={confirmDeleteSession}
         showVersionModal={showVersionModal}
         onCloseVersionModal={() => setShowVersionModal(false)}
+        onLaterVersionModal={dismissVersionReminder}
         releaseInfo={releaseInfo}
         currentVersion={currentVersion}
         latestVersion={latestVersion}
@@ -228,6 +270,7 @@ function Sidebar({
         <SidebarCollapsed
           onExpand={handleExpandSidebar}
           onShowSettings={onShowSettings}
+          currentVersion={currentVersion}
           updateAvailable={updateAvailable}
           onShowVersionModal={() => setShowVersionModal(true)}
           t={t}
@@ -248,11 +291,12 @@ function Sidebar({
             isRefreshing={isRefreshing}
             activeTab={activeTab}
             onOpenDashboard={onOpenDashboard}
+            onOpenTrash={onOpenTrash}
             onOpenSkills={onOpenSkills}
             onOpenNews={onOpenNews}
             onCreateProject={() => setShowWizard(true)}
             onCollapseSidebar={handleCollapseSidebar}
-
+            currentVersion={currentVersion}
             updateAvailable={updateAvailable}
             releaseInfo={releaseInfo}
             latestVersion={latestVersion}
@@ -267,6 +311,29 @@ function Sidebar({
 
     </>
   );
+}
+
+const VERSION_REMINDER_DELAY_MS = 24 * 60 * 60 * 1000;
+
+function readVersionReminder(storageKey: string): { version: string; remindAt: number } | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const rawValue = window.localStorage.getItem(storageKey);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as { version?: string; remindAt?: number };
+    if (!parsed.version || typeof parsed.remindAt !== 'number') {
+      return null;
+    }
+    return { version: parsed.version, remindAt: parsed.remindAt };
+  } catch {
+    return null;
+  }
 }
 
 export default Sidebar;

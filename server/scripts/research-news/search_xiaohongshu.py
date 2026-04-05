@@ -58,7 +58,7 @@ def load_research_config(config_path: str) -> Dict:
     import json
 
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, "r", encoding="utf-8-sig") as f:
             if config_path.endswith(".json"):
                 config = json.load(f)
             else:
@@ -118,7 +118,15 @@ def _run_xhs_cli(args: List[str], timeout: int = 120) -> Optional[Dict]:
     cmd = [xhs_bin] + args + ["--json"]
     logger.info("[XHS] Running: %s", " ".join(cmd))
 
-    result = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    # The xhs CLI uses its own Python interpreter (via shebang).  When this
+    # script is run by a *different* Python (e.g. 3.8), macOS sets
+    # __PYVENV_LAUNCHER__ to the parent interpreter, which causes the child
+    # Python to look for its stdlib in the wrong prefix and fail with
+    # "No module named 'encodings'".  Stripping this variable fixes it.
+    env = os.environ.copy()
+    env.pop("__PYVENV_LAUNCHER__", None)
+
+    result = subprocess.run(cmd, capture_output=True, timeout=timeout, env=env)
 
     if result.returncode != 0:
         logger.error("[XHS] CLI exited %d: %s", result.returncode, result.stderr.decode(errors="replace"))
@@ -539,7 +547,7 @@ def main() -> int:
         }
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
-        print(json.dumps(output, ensure_ascii=False, indent=2))
+        print(json.dumps(output, ensure_ascii=True, indent=2))
         return 0
 
     # ---- Score and rank ----
@@ -593,7 +601,7 @@ def main() -> int:
         )
 
     # Also print to stdout
-    print(json.dumps(output, ensure_ascii=False, indent=2))
+    print(json.dumps(output, ensure_ascii=True, indent=2))
 
     return 0
 

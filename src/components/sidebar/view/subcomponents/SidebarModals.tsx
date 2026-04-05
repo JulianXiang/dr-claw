@@ -24,6 +24,7 @@ type SidebarModalsProps = {
   onConfirmDeleteSession: () => void;
   showVersionModal: boolean;
   onCloseVersionModal: () => void;
+  onLaterVersionModal: () => void;
   releaseInfo: ReleaseInfo | null;
   currentVersion: string;
   latestVersion: string | null;
@@ -57,13 +58,13 @@ export default function SidebarModals({
   onConfirmDeleteSession,
   showVersionModal,
   onCloseVersionModal,
+  onLaterVersionModal,
   releaseInfo,
   currentVersion,
   latestVersion,
   installMode,
   t,
 }: SidebarModalsProps) {
-  // Settings expects project identity/path fields to be present for dropdown labels and local-scope MCP config.
   const settingsProjects = useMemo(
     () => projects.map(normalizeProjectForSettings),
     [projects],
@@ -183,6 +184,7 @@ export default function SidebarModals({
       <VersionUpgradeModal
         isOpen={showVersionModal}
         onClose={onCloseVersionModal}
+        onLater={onLaterVersionModal}
         releaseInfo={releaseInfo}
         currentVersion={currentVersion}
         latestVersion={latestVersion}
