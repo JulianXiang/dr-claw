@@ -161,10 +161,10 @@ class TestSessionFile(unittest.TestCase):
 class TestProjects(unittest.TestCase):
 
     def _make_client(self, json_data, status_code=200):
-        """Return a DrClaw client whose HTTP methods return fake responses."""
+        """Return a mock DrClaw client whose HTTP methods return fake responses."""
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response(json_data, status_code))
         client.put = MagicMock(return_value=_fake_response({"success": True}))
         client.post = MagicMock(return_value=_fake_response({"success": True, "project": {"name": "proj-abc"}}))
@@ -259,10 +259,10 @@ class TestProjects(unittest.TestCase):
 class TestDigests(unittest.TestCase):
 
     def _make_client(self, json_data, status_code=200):
-        """Return a DrClaw client whose HTTP methods return fake responses."""
+        """Return a mock DrClaw client whose HTTP methods return fake responses."""
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response(json_data, status_code))
         client.put = MagicMock(return_value=_fake_response({"success": True}))
         client.post = MagicMock(return_value=_fake_response({"success": True, "project": {"name": "proj-abc"}}))
@@ -354,7 +354,7 @@ class TestConversations(unittest.TestCase):
         from cli_anything.drclaw.core.session import DrClaw
 
         payload = {"sessions": [{"id": "s1", "title": "First session"}], "total": 1, "hasMore": False}
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response(payload))
 
         result = list_sessions(client, "proj-123", limit=10, offset=5, include_meta=True)
@@ -378,7 +378,7 @@ class TestConversations(unittest.TestCase):
             "total": 2,
             "hasMore": False,
         }
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response(payload))
 
         result = get_session_messages(
@@ -409,7 +409,7 @@ class TestTaskMaster(unittest.TestCase):
         from cli_anything.drclaw.core.session import DrClaw
         from cli_anything.drclaw.core.taskmaster import get_summary
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response({"project": "proj-123", "status": "taskmaster-only"}))
 
         result = get_summary(client, "proj-123")
@@ -423,7 +423,7 @@ class TestTaskMaster(unittest.TestCase):
         from cli_anything.drclaw.core.session import DrClaw
         from cli_anything.drclaw.core.taskmaster import build_summary
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
 
         responses = {
             "/api/taskmaster/detect/proj-123": _fake_response(
@@ -479,7 +479,7 @@ class TestChat(unittest.TestCase):
         from cli_anything.drclaw.core.chat import get_active_sessions
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         client.get = MagicMock(return_value=_fake_response({
             "projects": [
                 {
@@ -505,7 +505,7 @@ class TestChat(unittest.TestCase):
         from cli_anything.drclaw.core.chat import get_processing_sessions
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
 
         known_sessions = [
             {
@@ -542,7 +542,7 @@ class TestChat(unittest.TestCase):
         from cli_anything.drclaw.core.chat import check_session_status
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         with patch(
             "cli_anything.drclaw.core.chat._ws_request",
             return_value={"type": "session-status", "sessionId": "sess-1", "provider": "codex", "isProcessing": True},
@@ -560,7 +560,7 @@ class TestChat(unittest.TestCase):
         from cli_anything.drclaw.core.chat import get_waiting_sessions_compact
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         with patch(
             "cli_anything.drclaw.core.chat.get_processing_sessions",
             return_value=[
@@ -590,13 +590,13 @@ class TestCliHelpers(unittest.TestCase):
         from cli_anything.drclaw.drclaw_cli import Context
         from cli_anything.drclaw.core.session import DrClaw
 
-        return Context(json_mode=True, client=DrClaw(), lang="en")
+        return Context(json_mode=True, client=MagicMock(spec=DrClaw), lang="en")
 
     def test_resolve_session_provider_finds_unique_provider(self):
         from cli_anything.drclaw.drclaw_cli import _resolve_session_provider
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         project = {"name": "proj-1", "displayName": "Project One", "fullPath": "/tmp/proj-1"}
 
         with patch(
@@ -614,7 +614,7 @@ class TestCliHelpers(unittest.TestCase):
         from cli_anything.drclaw.drclaw_cli import _resolve_session_provider
         from cli_anything.drclaw.core.session import DrClaw
 
-        client = DrClaw()
+        client = MagicMock(spec=DrClaw)
         project = {"name": "proj-1", "displayName": "Project One", "fullPath": "/tmp/proj-1"}
 
         with patch(

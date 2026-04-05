@@ -1,5 +1,6 @@
 """Background OpenClaw watcher daemon driven by Dr. Claw WebSocket events."""
 
+import datetime
 import hashlib
 import json
 import os
@@ -16,6 +17,12 @@ from . import taskmaster as taskmaster_mod
 from .openclaw_bridge import send_openclaw_agent_message as _send_openclaw_agent_via_bridge
 from .openclaw_bridge import send_openclaw_message as _send_openclaw_via_bridge
 from .session import DrClaw, _load_session_file
+from ..utils.openclaw_helpers import (
+    build_project_schema as _shared_build_project_schema,
+    compact_message as _shared_compact_message,
+    compact_waiting_sessions as _shared_compact_waiting_sessions,
+    project_label as _shared_project_label,
+)
 
 
 DRCLAW_DIR = Path.home() / ".drclaw"
@@ -47,7 +54,6 @@ def _ensure_dirs() -> None:
 
 
 def _now() -> str:
-    import datetime
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
@@ -227,10 +233,7 @@ def _send_openclaw_agent(channel: str, prompt: str) -> str:
 
 
 def _compact_message(value: Any, limit: int = 220) -> str:
-    text = str(value or "").strip()
-    if len(text) <= limit:
-        return text
-    return text[: limit - 3] + "..."
+    return _shared_compact_message(value, limit=limit)
 
 
 def _normalize_path(value: Optional[str]) -> str:
@@ -241,32 +244,11 @@ def _normalize_path(value: Optional[str]) -> str:
 
 
 def _project_label(project: Dict[str, Any]) -> str:
-    return str(
-        project.get("displayName")
-        or project.get("display_name")
-        or project.get("name")
-        or project.get("fullPath")
-        or project.get("path")
-        or "unknown"
-    )
+    return _shared_project_label(project)
 
 
 def _compact_waiting_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    compact: List[Dict[str, Any]] = []
-    for row in rows[:3]:
-        compact.append(
-            {
-                "project": row.get("project"),
-                "project_display_name": row.get("project_display_name") or row.get("project"),
-                "provider": row.get("provider"),
-                "session_id": row.get("session_id"),
-                "summary": _compact_message(row.get("summary"), limit=140),
-                "status": row.get("status"),
-                "is_processing": bool(row.get("is_processing", True)),
-                "last_activity": row.get("last_activity") or row.get("lastActivity") or row.get("updatedAt") or "",
-            }
-        )
-    return compact
+    return _shared_compact_waiting_sessions(rows, max_rows=3, compact_messages=True)
 
 
 def _build_artifact_brief(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -302,42 +284,7 @@ def _build_project_digest(client: DrClaw, project: Dict[str, Any]) -> Dict[str, 
 
 
 def _build_project_schema(payload: Dict[str, Any]) -> Dict[str, Any]:
-    counts = payload.get("counts") or {}
-    waiting = payload.get("waiting") or []
-    blocked = int(counts.get("blocked", 0) or 0)
-    waiting_count = len(waiting)
-    overall_state = "attention_needed" if blocked or waiting_count else ("active" if counts.get("in_progress", 0) else "idle")
-    return {
-        "schema_version": "openclaw.project.v1",
-        "kind": "project_digest",
-        "project": {
-            "ref": payload.get("project"),
-            "display_name": payload.get("project_display_name"),
-            "path": payload.get("project_path") or "",
-            "state": overall_state,
-        },
-        "status": {
-            "workflow": payload.get("status"),
-            "updated_at": payload.get("updated_at"),
-        },
-        "counts": counts,
-        "next_task": payload.get("next_task") or {},
-        "guidance": payload.get("guidance") or {},
-        "waiting_sessions": waiting,
-        "artifacts": payload.get("artifacts") or {},
-        "decision": {
-            "needed": bool(waiting_count or blocked),
-            "reason": "waiting_session" if waiting_count else ("blocked_task" if blocked else None),
-        },
-        "next_actions": [
-            {
-                "id": "status",
-                "label": "Check Status",
-                "kind": "command",
-                "command": f'drclaw --json workflow status --project "{payload.get("project") or payload.get("project_path") or ""}"',
-            }
-        ],
-    }
+    return _shared_build_project_schema(payload)
 
 
 def _resolve_project_from_event(client: DrClaw, event: Dict[str, Any], cached_projects: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
@@ -573,6 +520,8 @@ def _extract_delivery_message(raw_output: str) -> str:
 
 
 def _event_signature(event: Dict[str, Any], portfolio_event: Optional[Dict[str, Any]]) -> str:
+    openclaw_signals = ((event.get("openclaw") or {}).get("event") or {}).get("signals") or []
+    signal_kinds = sorted(str(s.get("kind") or "") for s in openclaw_signals)
     stable = {
         "type": event.get("type"),
         "project": event.get("project"),
@@ -581,6 +530,7 @@ def _event_signature(event: Dict[str, Any], portfolio_event: Optional[Dict[str, 
         "tool_name": event.get("tool_name"),
         "change_type": event.get("change_type"),
         "success": event.get("success"),
+        "signal_kinds": signal_kinds,
         "portfolio_reason": ((portfolio_event or {}).get("decision") or {}).get("reason"),
         "portfolio_state": ((portfolio_event or {}).get("project") or {}).get("state"),
     }
@@ -721,6 +671,7 @@ def _watch_loop(channel: str, drclaw_bin: str, base_url: Optional[str], interval
         _record_notification(state, event, message)
         _save_state(state)
 
+    backoff = 2
     while True:
         try:
             chat_mod.watch_events(
@@ -731,11 +682,13 @@ def _watch_loop(channel: str, drclaw_bin: str, base_url: Optional[str], interval
             )
             state["last_run_at"] = _now()
             _save_state(state)
+            backoff = 2  # reset on success
         except KeyboardInterrupt:
             raise
         except Exception as exc:
             _append_log(f"[watcher] Loop error at {_now()}: {exc}")
-            time.sleep(2)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 120)
 
 
 def run_loop(*, channel: str, interval: int, drclaw_bin: str, base_url: Optional[str]) -> None:

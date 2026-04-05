@@ -32,7 +32,7 @@ $DRCLAW_BIN server on
 Assume the local wrapper exports these defaults when OpenClaw runs the skill:
 
 ```bash
-DRCLAW_BIN=/Users/david/Library/Python/3.9/bin/drclaw
+DRCLAW_BIN="${DRCLAW_BIN:-$(which drclaw)}"
 DRCLAW_URL=http://localhost:3001
 ```
 
@@ -47,7 +47,7 @@ When a command returns JSON, prefer the top-level `openclaw` field over scraping
 Formal schema contract:
 
 ```bash
-cat /Users/david/Developer/agent/VibeLab/agent-harness/cli_anything/drclaw/SCHEMA.md
+cat "$(git rev-parse --show-toplevel)/agent-harness/cli_anything/drclaw/SCHEMA.md"
 ```
 
 When calling OpenClaw locally from automation or shell, use:

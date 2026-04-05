@@ -62,10 +62,10 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
-import time
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -89,6 +89,11 @@ from .core.session import (
     DrClaw,
     _load_session_file,
     _save_session_file,
+)
+from .utils.openclaw_helpers import (
+    build_project_schema as _shared_build_project_schema,
+    compact_waiting_sessions as _shared_compact_waiting_sessions,
+    project_label as _shared_project_label,
 )
 from .utils.output import error, info, output, success
 
@@ -212,14 +217,7 @@ def _normalize_path(value: str) -> str:
 
 
 def _project_label(project: Dict[str, Any]) -> str:
-    return (
-        project.get("displayName")
-        or project.get("display_name")
-        or project.get("name")
-        or project.get("fullPath")
-        or project.get("path")
-        or "unknown"
-    )
+    return _shared_project_label(project)
 
 
 def _project_identity(project: Dict[str, Any]) -> str:
@@ -709,21 +707,7 @@ def _build_openclaw_chat_notification(payload: Dict[str, Any], action: str, ctx:
 
 
 def _compact_waiting_sessions(sessions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    rows = []
-    for session in sessions:
-        rows.append(
-            {
-                "project": session.get("project"),
-                "project_display_name": session.get("project_display_name") or session.get("project"),
-                "provider": session.get("provider"),
-                "session_id": session.get("session_id"),
-                "summary": session.get("summary") or "",
-                "status": session.get("status") or "waiting_for_response",
-                "is_processing": bool(session.get("is_processing", True)),
-                "last_activity": session.get("last_activity") or "",
-            }
-        )
-    return rows
+    return _shared_compact_waiting_sessions(sessions)
 
 
 def _build_artifact_brief(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -880,16 +864,19 @@ def _clean_text(value: Any) -> str:
     return str(value or "").strip()
 
 
+_BLOCKER_RE = re.compile(r"\b(blocked|error|failed)\b", re.IGNORECASE)
+_COMPLETION_RE = re.compile(r"\b(done|completed|finished)\b", re.IGNORECASE)
+
+
 def _infer_reply_kind(reply: str) -> str:
     text = _clean_text(reply)
     if not text:
         return "empty"
-    lowered = text.lower()
     if any(token in text for token in ["?", "？", "请确认", "请选择", "需要你", "请决定"]):
         return "question"
-    if any(token in lowered for token in ["blocked", "error", "failed"]) or any(token in text for token in ["阻塞", "失败", "报错"]):
+    if _BLOCKER_RE.search(text) or any(t in text for t in ["阻塞", "失败", "报错"]):
         return "blocker"
-    if any(token in lowered for token in ["done", "completed", "finished"]) or any(token in text for token in ["完成", "已完成"]):
+    if _COMPLETION_RE.search(text) or any(t in text for t in ["完成", "已完成"]):
         return "completion"
     return "update"
 
@@ -987,50 +974,20 @@ def _build_openclaw_turn_schema(
 
 
 def _build_openclaw_project_schema(payload: Dict[str, Any]) -> Dict[str, Any]:
-    counts = payload.get("counts") or {}
-    waiting = payload.get("waiting") or []
-    next_task = payload.get("next_task") or {}
-    guidance = payload.get("guidance") or {}
-    blocked = counts.get("blocked", 0)
-    waiting_count = len(waiting)
-    overall_state = "attention_needed" if blocked or waiting_count else ("active" if counts.get("in_progress", 0) else "idle")
-    return {
-        "schema_version": "openclaw.project.v1",
-        "kind": "project_digest",
-        "project": {
-            "ref": payload.get("project"),
-            "display_name": payload.get("project_display_name"),
-            "path": payload.get("project_path") or "",
-            "state": overall_state,
-        },
-        "status": {
-            "workflow": payload.get("status"),
-            "updated_at": payload.get("updated_at"),
-        },
-        "counts": counts,
-        "next_task": next_task,
-        "guidance": guidance,
-        "waiting_sessions": _compact_waiting_sessions(waiting),
-        "artifacts": payload.get("artifacts") or {},
-        "decision": {
-            "needed": bool(waiting_count or blocked),
-            "reason": "waiting_session" if waiting_count else ("blocked_task" if blocked else None),
-        },
-        "next_actions": [
-            {
-                "id": "status",
-                "label": "Check Status",
-                "kind": "command",
-                "command": f'{_PRIMARY_CLI_NAME} --json workflow status --project "{payload.get("project") or payload.get("project_path") or ""}"',
-            },
+    project_ref = payload.get("project") or payload.get("project_path") or ""
+    return _shared_build_project_schema(
+        payload,
+        cli_name=_PRIMARY_CLI_NAME,
+        waiting_sessions=_compact_waiting_sessions(payload.get("waiting") or []),
+        extra_actions=[
             {
                 "id": "report",
                 "label": "Push Report",
                 "kind": "command",
-                "command": f'{_PRIMARY_CLI_NAME} --json openclaw report --project "{payload.get("project") or payload.get("project_path") or ""}" --dry-run',
+                "command": f'{_PRIMARY_CLI_NAME} --json openclaw report --project "{project_ref}" --dry-run',
             },
         ],
-    }
+    )
 
 
 def _build_openclaw_portfolio_schema(payload: Dict[str, Any]) -> Dict[str, Any]:
