@@ -360,6 +360,11 @@
       "taskContext": "No task or todo context captured yet.",
       "reviewQueue": "No generated files found for this session yet."
     },
+    "sidebarTabs": {
+      "context": "Context",
+      "research": "Research",
+      "files": "Files"
+    },
     "preview": {
       "titleFallback": "Preview",
       "selectFile": "Select a file to preview",

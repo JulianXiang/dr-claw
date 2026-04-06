@@ -93,6 +93,7 @@ function ChatInterface({
   sendByCtrlEnter,
   externalMessageUpdate,
   onShowAllTasks,
+  onStartWorkspaceQa,
   pendingAutoIntake,
   clearPendingAutoIntake,
   importedProjectAnalysisPrompt,
@@ -105,6 +106,18 @@ function ChatInterface({
   const { refreshTasks } = useTaskMaster();
   const { t } = useTranslation('chat');
   const [isShellEditPromptOpen, setIsShellEditPromptOpen] = useState(false);
+
+  const [sidebarTab, setSidebarTab] = useState<'context' | 'research' | 'files'>(() => {
+    if (typeof window === 'undefined') return 'context';
+    const stored = window.localStorage.getItem('chat-sidebar-active-tab');
+    return (stored === 'research' || stored === 'files') ? stored : 'context';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('chat-sidebar-active-tab', sidebarTab);
+    }
+  }, [sidebarTab]);
 
   const streamBufferRef = useRef('');
   const streamTimerRef = useRef<number | null>(null);
@@ -656,7 +669,7 @@ function ChatInterface({
         <div className="flex justify-end px-4 pb-4">
           <ChatTaskProgressPill
             onStartTask={handleStartTaskInChat}
-            onShowAllTasks={onShowAllTasks}
+            onShowAllTasks={() => setSidebarTab('research')}
           />
         </div>
       </>
@@ -796,7 +809,7 @@ function ChatInterface({
             <div className="flex-1 min-w-0">
               <ChatTaskProgressPill
                 onStartTask={handleStartTaskInChat}
-                onShowAllTasks={onShowAllTasks}
+                onShowAllTasks={() => setSidebarTab('research')}
               />
             </div>
           </div>
@@ -886,6 +899,9 @@ function ChatInterface({
           newSessionMode={newSessionMode}
           chatMessages={chatMessages}
           onFileOpen={onFileOpen}
+          activeSidebarTab={sidebarTab}
+          onSidebarTabChange={setSidebarTab}
+          onStartWorkspaceQa={onStartWorkspaceQa}
         />
       </div>
 

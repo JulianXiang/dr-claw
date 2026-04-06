@@ -157,6 +157,7 @@ export interface ChatInterfaceProps {
   externalMessageUpdate?: number;
   onTaskClick?: (...args: unknown[]) => void;
   onShowAllTasks?: (() => void) | null;
+  onStartWorkspaceQa?: (project: Project, prompt: string) => void;
   pendingAutoIntake?: PendingAutoIntake | null;
   clearPendingAutoIntake?: () => void;
   importedProjectAnalysisPrompt?: ImportedProjectAnalysisPrompt | null;

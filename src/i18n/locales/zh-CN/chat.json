@@ -360,6 +360,11 @@
       "taskContext": "当前还没有捕获到任务或待办上下文。",
       "reviewQueue": "当前会话还没有发现生成文件。"
     },
+    "sidebarTabs": {
+      "context": "上下文",
+      "research": "研究",
+      "files": "文件"
+    },
     "preview": {
       "titleFallback": "预览",
       "selectFile": "选择一个文件进行预览",

@@ -360,6 +360,11 @@
       "taskContext": "아직 작업 또는 Todo 컨텍스트가 수집되지 않았습니다.",
       "reviewQueue": "이 세션에서 생성된 파일이 아직 없습니다."
     },
+    "sidebarTabs": {
+      "context": "컨텍스트",
+      "research": "연구",
+      "files": "파일"
+    },
     "preview": {
       "titleFallback": "미리보기",
       "selectFile": "미리볼 파일을 선택하세요",

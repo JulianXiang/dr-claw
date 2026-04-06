@@ -10,10 +10,15 @@ import {
   EyeOff,
   ExternalLink,
   FileOutput,
+  FlaskConical,
+  Folder,
   FolderSearch,
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
+
+import ResearchLab from '../../../ResearchLab';
+import FileTree from '../../../FileTree';
 
 import { cn } from '../../../../lib/utils';
 import { authenticatedFetch, api } from '../../../../utils/api';
@@ -65,6 +70,8 @@ const SECTION_STYLES: Record<SectionTone, {
   },
 };
 
+type SidebarTab = 'context' | 'research' | 'files';
+
 interface ChatContextSidebarProps {
   selectedProject: Project | null;
   selectedSession: ProjectSession | null;
@@ -73,6 +80,9 @@ interface ChatContextSidebarProps {
   newSessionMode?: SessionMode;
   chatMessages: ChatMessage[];
   onFileOpen?: (filePath: string, diffInfo?: unknown) => void;
+  activeSidebarTab?: SidebarTab;
+  onSidebarTabChange?: (tab: SidebarTab) => void;
+  onStartWorkspaceQa?: (project: Project, prompt: string) => void;
 }
 
 const formatTimeLabel = (value: string, locale?: string) => {
@@ -256,6 +266,9 @@ export default function ChatContextSidebar({
   newSessionMode = 'research',
   chatMessages,
   onFileOpen,
+  activeSidebarTab = 'context',
+  onSidebarTabChange,
+  onStartWorkspaceQa,
 }: ChatContextSidebarProps) {
   const { t, i18n } = useTranslation('chat');
   const [fetchedMessages, setFetchedMessages] = useState<ChatMessage[]>([]);
@@ -548,14 +561,35 @@ export default function ChatContextSidebar({
       >
       <div className="border-b border-border/60 px-4 py-3.5">
         <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold tracking-tight text-foreground">{t('sessionContext.title')}</div>
-            <div className="mt-1 max-w-[42ch] text-[11px] leading-5 text-muted-foreground">
-              {t('sessionContext.description')}
+          {!isCollapsed && (
+            <div className="inline-flex items-center bg-muted/60 rounded-lg p-[3px] gap-[2px]">
+              {([
+                { id: 'context' as SidebarTab, icon: FolderSearch, labelKey: 'sessionContext.sidebarTabs.context' },
+                { id: 'research' as SidebarTab, icon: FlaskConical, labelKey: 'sessionContext.sidebarTabs.research' },
+                { id: 'files' as SidebarTab, icon: Folder, labelKey: 'sessionContext.sidebarTabs.files' },
+              ]).map((tab) => {
+                const TabIcon = tab.icon;
+                const isActive = tab.id === activeSidebarTab;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => onSidebarTabChange?.(tab.id)}
+                    className={`relative flex items-center gap-1.5 px-2.5 py-[5px] text-xs font-medium rounded-md transition-all duration-150 ${
+                      isActive
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <TabIcon className="w-3.5 h-3.5" strokeWidth={isActive ? 2.2 : 1.8} />
+                    <span>{t(tab.labelKey)}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          )}
           <div className="flex items-center gap-2">
-            {isLoadingTrace && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            {isLoadingTrace && activeSidebarTab === 'context' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
             <button
               type="button"
               onClick={toggleCollapsed}
@@ -567,20 +601,7 @@ export default function ChatContextSidebar({
           </div>
         </div>
 
-        {isCollapsed && (
-          <div className="mt-3 flex justify-center">
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background/85 text-muted-foreground shadow-sm transition-colors hover:text-foreground"
-            title={t('sessionContext.actions.expand')}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </button>
-          </div>
-        )}
-
-        {!isCollapsed && (
+        {!isCollapsed && activeSidebarTab === 'context' && (
           <>
 
         <div className="mt-3 grid grid-cols-4 gap-2">
@@ -606,17 +627,39 @@ export default function ChatContextSidebar({
       </div>
 
       {isCollapsed ? (
-        <div className="flex flex-1 items-start justify-center p-3 xl:pt-4">
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-background/85 text-muted-foreground shadow-sm transition-colors hover:text-foreground"
-            title={t('sessionContext.actions.expand')}
-          >
-            <FolderSearch className="h-4 w-4" />
-          </button>
+        <div className="flex flex-1 flex-col items-center gap-2 p-3 xl:pt-4">
+          {([
+            { id: 'context' as SidebarTab, icon: FolderSearch, labelKey: 'sessionContext.sidebarTabs.context' },
+            { id: 'research' as SidebarTab, icon: FlaskConical, labelKey: 'sessionContext.sidebarTabs.research' },
+            { id: 'files' as SidebarTab, icon: Folder, labelKey: 'sessionContext.sidebarTabs.files' },
+          ]).map((tab) => {
+            const TabIcon = tab.icon;
+            const isActive = tab.id === activeSidebarTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  onSidebarTabChange?.(tab.id);
+                  setIsCollapsed(false);
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, '0');
+                  }
+                }}
+                className={cn(
+                  'inline-flex h-10 w-10 items-center justify-center rounded-xl border shadow-sm transition-colors',
+                  isActive
+                    ? 'border-primary/30 bg-primary/10 text-foreground'
+                    : 'border-border/70 bg-background/85 text-muted-foreground hover:text-foreground',
+                )}
+                title={t(tab.labelKey)}
+              >
+                <TabIcon className="h-4 w-4" />
+              </button>
+            );
+          })}
         </div>
-      ) : (
+      ) : activeSidebarTab === 'context' ? (
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
         <section className={`rounded-[22px] border p-3.5 shadow-sm ${SECTION_STYLES.context.panel} ${collapsedSections.context ? '' : 'flex min-h-[220px] flex-1 flex-col overflow-hidden'}`}>
           <SectionHeader
@@ -782,7 +825,23 @@ export default function ChatContextSidebar({
           )}
         </section>
       </div>
-      )}
+      ) : activeSidebarTab === 'research' ? (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ResearchLab
+            selectedProject={selectedProject}
+            onNavigateToChat={() => onSidebarTabChange?.('context')}
+            compact
+          />
+        </div>
+      ) : activeSidebarTab === 'files' ? (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <FileTree
+            selectedProject={selectedProject}
+            onFileOpen={onFileOpen}
+            onStartWorkspaceQa={onStartWorkspaceQa}
+          />
+        </div>
+      ) : null}
     </aside>
     </>
   );

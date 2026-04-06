@@ -447,7 +447,27 @@ function ResearchMetricCard({
   value,
   detail,
   accentClass,
+  compact = false,
 }) {
+  if (compact) {
+    return (
+      <div className="rounded-xl border border-white/70 bg-white/78 px-3 py-2 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-950/50">
+        <div className="flex items-center gap-2">
+          <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border ${accentClass}`}>
+            <Icon className="h-3.5 w-3.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg font-semibold tracking-tight text-foreground">{value}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+            </div>
+            {detail ? <div className="truncate text-[10px] text-muted-foreground">{detail}</div> : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[26px] border border-white/70 bg-white/78 p-4 shadow-[0_16px_45px_rgba(15,23,42,0.08)] backdrop-blur dark:border-white/10 dark:bg-slate-950/50 dark:shadow-[0_20px_55px_rgba(2,6,23,0.45)]">
       <div className="flex items-start justify-between gap-3">
@@ -464,7 +484,7 @@ function ResearchMetricCard({
   );
 }
 
-function PipelineStageChip({ stage }) {
+function PipelineStageChip({ stage, compact = false }) {
   const tone = {
     survey: 'border-sky-200/70 bg-sky-50/80 dark:border-sky-900/70 dark:bg-sky-950/20',
     ideation: 'border-amber-200/70 bg-amber-50/80 dark:border-amber-900/70 dark:bg-amber-950/20',
@@ -474,10 +494,23 @@ function PipelineStageChip({ stage }) {
   }[stage.key] || 'border-border/60 bg-background/60';
 
   const summaryLabel = stage.total > 0
-    ? `${stage.done}/${stage.total} done`
+    ? `${stage.done}/${stage.total}`
     : stage.artifacts > 0
       ? 'Artifacts only'
       : 'Waiting';
+
+  if (compact) {
+    return (
+      <div className={`rounded-lg border px-2 py-1.5 shadow-sm ${tone}`}>
+        <div className="flex items-center justify-between gap-1">
+          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${stage.meta.className}`}>
+            {stage.meta.label}
+          </span>
+          <span className="text-[9px] text-muted-foreground">{summaryLabel}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-2xl border px-3 py-3 shadow-sm ${tone}`}>
@@ -2359,7 +2392,7 @@ function UsageGuideNotice({
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-function ResearchLab({ selectedProject, onNavigateToChat }) {
+function ResearchLab({ selectedProject, onNavigateToChat, compact = false }) {
   const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
   const [instance, setInstance] = useState(null);
@@ -2658,22 +2691,26 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
 
   return (
     <div className="flex h-full flex-col bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_20%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.94))] dark:bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.10),transparent_20%),linear-gradient(180deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))]">
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-border/60 bg-background/75 px-4 py-3 backdrop-blur-xl">
+      <div className={`flex flex-shrink-0 items-center justify-between border-b border-border/60 bg-background/75 backdrop-blur-xl ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-200/70 bg-blue-50/85 text-blue-700 shadow-sm dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-300">
-            <FlaskConical className="h-5 w-5" />
-          </div>
+          {!compact && (
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-200/70 bg-blue-50/85 text-blue-700 shadow-sm dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-300">
+              <FlaskConical className="h-5 w-5" />
+            </div>
+          )}
           <div className="min-w-0">
-            <div className="font-medium text-foreground">
-              {t('tabs.researchLab') || 'Research Lab'}
+            <div className={`font-medium text-foreground ${compact ? 'text-sm' : ''}`}>
+              {compact ? projectTitle : (t('tabs.researchLab') || 'Research Lab')}
             </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {projectTitle}
-            </div>
+            {!compact && (
+              <div className="truncate text-xs text-muted-foreground">
+                {projectTitle}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {nextTask && onNavigateToChat && (
+          {nextTask && onNavigateToChat && !compact && (
             <Button
               size="sm"
               className="hidden rounded-full text-white shadow-[0_10px_24px_rgba(14,165,233,0.28)] sm:inline-flex bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-500 hover:from-cyan-400 hover:via-sky-400 hover:to-emerald-400"
@@ -2690,8 +2727,8 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="mx-auto max-w-[1480px] p-4 sm:p-6">
-          {!guideDismissed ? (
+        <div className={compact ? "p-3" : "mx-auto max-w-[1480px] p-4 sm:p-6"}>
+          {!compact && !guideDismissed ? (
             <div className="mb-6">
               <UsageGuideNotice
                 t={t}
@@ -2703,29 +2740,34 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
             </div>
           ) : null}
 
-          <section className="relative overflow-hidden rounded-[36px] border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.28),transparent_34%),linear-gradient(135deg,rgba(248,250,252,0.96),rgba(240,249,255,0.90))] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,rgba(2,6,23,0.96),rgba(15,23,42,0.92))] dark:shadow-[0_28px_70px_rgba(2,6,23,0.45)] sm:p-7">
+          <section className={`relative overflow-hidden border border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.28),transparent_34%),linear-gradient(135deg,rgba(248,250,252,0.96),rgba(240,249,255,0.90))] shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,rgba(2,6,23,0.96),rgba(15,23,42,0.92))] dark:shadow-[0_28px_70px_rgba(2,6,23,0.45)] ${compact ? 'rounded-2xl p-3' : 'rounded-[36px] p-6 sm:p-7'}`}>
             <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full bg-sky-200/50 blur-3xl dark:bg-sky-500/15" />
             <div className="absolute bottom-0 right-24 h-28 w-28 rounded-full bg-emerald-200/40 blur-2xl dark:bg-emerald-500/10" />
-            <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">
+            <div className={`relative grid ${compact ? 'gap-3' : 'gap-6'} ${compact ? '' : 'xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]'}`}>
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-slate-950/50 dark:text-sky-200">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Live Research Workspace
-                </div>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                {!compact && (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/70 bg-white/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-slate-950/50 dark:text-sky-200">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Live Research Workspace
+                  </div>
+                )}
+                <h2 className={`font-semibold tracking-tight text-foreground ${compact ? 'text-base' : 'mt-4 text-3xl sm:text-4xl'}`}>
                   {projectTitle}
                 </h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
-                  Track every stage of the research pipeline, review generated artifacts, and jump back into execution without leaving the lab view.
-                </p>
+                {!compact && (
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Track every stage of the research pipeline, review generated artifacts, and jump back into execution without leaving the lab view.
+                  </p>
+                )}
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className={`grid ${compact ? 'mt-3 grid-cols-2 gap-2' : 'mt-6 gap-3 sm:grid-cols-2 xl:grid-cols-4'}`}>
                   <ResearchMetricCard
                     icon={ListChecks}
                     label="Tasks"
                     value={taskSummary.total}
                     detail={taskSummary.total > 0 ? `${taskSummary.progress}% complete` : 'No pipeline tasks yet'}
                     accentClass="border-cyan-200/80 bg-cyan-100/80 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-200"
+                    compact={compact}
                   />
                   <ResearchMetricCard
                     icon={Target}
@@ -2733,6 +2775,7 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                     value={taskSummary.done}
                     detail={taskSummary.inProgress > 0 ? `${taskSummary.inProgress} active now` : `${taskSummary.pending} pending`}
                     accentClass="border-emerald-200/80 bg-emerald-100/80 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    compact={compact}
                   />
                   <ResearchMetricCard
                     icon={Beaker}
@@ -2740,6 +2783,7 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                     value={artifacts.length}
                     detail={artifacts.length > 0 ? `${liveStageCount} pipeline stages populated` : 'No outputs yet'}
                     accentClass="border-blue-200/80 bg-blue-100/80 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200"
+                    compact={compact}
                   />
                   <ResearchMetricCard
                     icon={BookOpen}
@@ -2753,12 +2797,13 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
                         : 'No papers attached yet'
                     }
                     accentClass="border-amber-200/80 bg-amber-100/80 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
+                    compact={compact}
                   />
                 </div>
 
-                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className={`grid ${compact ? 'mt-3 grid-cols-3 gap-1.5' : 'mt-6 gap-3 md:grid-cols-2 xl:grid-cols-5'}`}>
                   {pipelineStageOverview.map((stage) => (
-                    <PipelineStageChip key={stage.key} stage={stage} />
+                    <PipelineStageChip key={stage.key} stage={stage} compact={compact} />
                   ))}
                 </div>
               </div>
@@ -2809,14 +2854,14 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
             </div>
           </section>
 
-          <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.05fr)_420px]">
+          <div className={`grid items-start ${compact ? 'mt-3 gap-3' : 'mt-6 gap-6'} ${compact ? '' : 'xl:grid-cols-[minmax(0,1.05fr)_420px]'}`}>
             <div className="min-w-0 space-y-6">
-              <div className={`grid items-stretch gap-6 ${sourcePapers.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+              <div className={`grid items-stretch gap-6 ${sourcePapers.length > 0 && !compact ? 'lg:grid-cols-2' : ''}`}>
                 <OverviewCard instance={instance} config={config} researchBrief={researchBrief} />
                 {sourcePapers.length > 0 ? <PapersCard papers={sourcePapers} /> : null}
               </div>
 
-              <div className="xl:hidden">
+              <div className={compact ? '' : 'xl:hidden'}>
                 {sidebar}
               </div>
 
@@ -2866,9 +2911,11 @@ function ResearchLab({ selectedProject, onNavigateToChat }) {
               )}
             </div>
 
-            <div className="hidden xl:block xl:sticky xl:top-6">
-              {sidebar}
-            </div>
+            {!compact && (
+              <div className="hidden xl:block xl:sticky xl:top-6">
+                {sidebar}
+              </div>
+            )}
           </div>
         </div>
       </ScrollArea>
