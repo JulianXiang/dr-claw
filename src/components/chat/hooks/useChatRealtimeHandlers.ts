@@ -14,6 +14,7 @@ import {
   safeLocalStorage,
 } from '../utils/chatStorage';
 import { RESUMING_STATUS_TEXT } from '../types/types';
+import i18n from '../../../i18n/config';
 import type { ChatMessage, PendingPermissionRequest } from '../types/types';
 import type { Project, ProjectSession, SessionProvider } from '../../../types/app';
 
@@ -49,6 +50,7 @@ interface UseChatRealtimeHandlersArgs {
   setIsLoading: (loading: boolean) => void;
   setCanAbortSession: (canAbort: boolean) => void;
   setClaudeStatus: Dispatch<SetStateAction<{ text: string; tokens: number; can_interrupt: boolean; startTime?: number } | null>>;
+  setStatusTextOverride: Dispatch<SetStateAction<string | null>>;
   setTokenBudget: (budget: Record<string, unknown> | null) => void;
   setIsSystemSessionChange: (isSystemSessionChange: boolean) => void;
   setPendingPermissionRequests: Dispatch<SetStateAction<PendingPermissionRequest[]>>;
@@ -139,6 +141,7 @@ export function useChatRealtimeHandlers({
   setIsLoading,
   setCanAbortSession,
   setClaudeStatus,
+  setStatusTextOverride,
   setTokenBudget,
   setIsSystemSessionChange,
   setPendingPermissionRequests,
@@ -156,6 +159,10 @@ export function useChatRealtimeHandlers({
 
   // Helper: Handle structured assistant content
   const handleStructuredAssistantMessage = (structuredData: any, rawData: any) => {
+    // New assistant message = previous tool execution done; clear override.
+    // If this message contains a new Bash tool_use, it will be re-set below (React batches both updates).
+    setStatusTextOverride(null);
+
     const parentToolUseId = rawData?.parentToolUseId;
     const newMessages: any[] = [];
     const childToolUpdates: { parentId: string; child: any }[] = [];
@@ -176,6 +183,10 @@ export function useChatRealtimeHandlers({
       }
 
       if (part.type === 'tool_use') {
+        if (['Bash', 'run_shell_command'].includes(part.name)) {
+          // Set running code status when command starts
+          setStatusTextOverride(i18n.t('chat:status.runningCode'));
+        }
         const toolInput = part.input ? JSON.stringify(part.input, null, 2) : '';
 
         if (parentToolUseId) {
@@ -285,6 +296,9 @@ export function useChatRealtimeHandlers({
     }
 
     if (toolResults.length > 0) {
+      // Reset "running code" status when tool results arrive (tool execution finished)
+      setStatusTextOverride(null);
+
       setChatMessages((previous) =>
         previous.map((message) => {
           for (const part of toolResults) {
@@ -368,12 +382,16 @@ export function useChatRealtimeHandlers({
       'claude-complete',
       'codex-complete',
       'gemini-complete',
+      'openrouter-complete',
+      'localgpu-complete',
       'cursor-result',
       'session-aborted',
       'claude-error',
       'cursor-error',
       'codex-error',
       'gemini-error',
+      'openrouter-error',
+      'localgpu-error',
     ]);
 
     const isClaudeSystemInit =
@@ -456,6 +474,7 @@ export function useChatRealtimeHandlers({
       setIsLoading(false);
       setCanAbortSession(false);
       setClaudeStatus(null);
+      setStatusTextOverride(null);
     };
 
     const flushAndFinalizePendingStream = () => {
@@ -552,6 +571,7 @@ export function useChatRealtimeHandlers({
           }
           if (messageData.type === 'content_block_delta' && messageData.delta?.text) {
             setIsLoading(true);
+            setStatusTextOverride(null);
             const decodedText = decodeHtmlEntities(messageData.delta.text);
             streamBufferRef.current += decodedText;
             if (!streamTimerRef.current) {
@@ -606,6 +626,7 @@ export function useChatRealtimeHandlers({
           }
           if (messageData.type === 'content_block_delta' && messageData.delta?.text) {
             setIsLoading(true);
+            setStatusTextOverride(null);
             const decodedText = decodeHtmlEntities(messageData.delta.text);
             streamBufferRef.current += decodedText;
             if (!streamTimerRef.current) {
@@ -652,6 +673,89 @@ export function useChatRealtimeHandlers({
         break;
       }
 
+      case 'localgpu-response':
+      case 'openrouter-response': {
+        const orData = latestMessage.data;
+        if (orData && typeof orData === 'object') {
+          if (Number.isFinite(orData.startTime)) {
+            persistStartTime(orData.startTime, latestMessage.sessionId, currentSessionId, selectedSession?.id);
+            syncClaudeStatusStartTime(orData.startTime);
+          }
+
+          if (orData.type === 'assistant_message' && orData.message?.content) {
+            setIsLoading(true);
+            setStatusTextOverride(null);
+            const text = orData.message.content;
+            streamBufferRef.current += text;
+            if (!streamTimerRef.current) {
+              streamTimerRef.current = window.setTimeout(() => {
+                const chunk = streamBufferRef.current;
+                streamBufferRef.current = '';
+                streamTimerRef.current = null;
+                appendStreamingChunk(setChatMessages, chunk, false);
+              }, 30);
+            }
+            return;
+          }
+
+          if (orData.type === 'structured_turn' && orData.message) {
+            flushAndFinalizePendingStream();
+            handleStructuredAssistantMessage(orData.message, orData);
+            return;
+          }
+
+          if (orData.type === 'structured_result' && orData.message) {
+            handleUserToolResults(orData.message, orData);
+            return;
+          }
+
+          if (orData.type === 'tool_use') {
+            flushAndFinalizePendingStream();
+            if (['Bash', 'bash', 'run_shell_command'].includes(orData.toolName)) {
+              setStatusTextOverride(i18n.t('chat:status.runningCode'));
+            }
+            const toolInput = orData.toolInput ? JSON.stringify(orData.toolInput, null, 2) : '';
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                type: 'assistant' as const,
+                content: '',
+                timestamp: new Date(),
+                isToolUse: true,
+                toolName: orData.toolName,
+                toolInput,
+                toolId: orData.toolCallId,
+                toolResult: null,
+              },
+            ]);
+            return;
+          }
+
+          if (orData.type === 'tool_result') {
+            setStatusTextOverride(null);
+            setChatMessages((prev) => {
+              const updated = [...prev];
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].isToolUse && updated[i].toolId === orData.toolCallId) {
+                  updated[i] = {
+                    ...updated[i],
+                    toolResult: {
+                      content: orData.output,
+                      isError: orData.isError || false,
+                      timestamp: new Date(),
+                    },
+                  };
+                  break;
+                }
+              }
+              return updated;
+            });
+            return;
+          }
+        }
+        break;
+      }
+
       case 'claude-output': {
         const cleaned = String(latestMessage.data || '');
         if (cleaned.trim()) {
@@ -669,9 +773,12 @@ export function useChatRealtimeHandlers({
       }
 
       case 'claude-complete':
-      case 'gemini-complete': {
+      case 'gemini-complete':
+      case 'openrouter-complete':
+      case 'localgpu-complete': {
         const pendingSessionId = sessionStorage.getItem('pendingSessionId');
         const completedSessionId = latestMessage.sessionId || currentSessionId || pendingSessionId;
+        flushAndFinalizePendingStream();
         clearLoadingIndicators();
         markSessionsAsCompleted(completedSessionId, currentSessionId, selectedSession?.id, pendingSessionId);
         if (pendingSessionId && !currentSessionId && latestMessage.exitCode === 0) {
@@ -686,7 +793,9 @@ export function useChatRealtimeHandlers({
       }
 
       case 'claude-error':
-      case 'gemini-error': {
+      case 'gemini-error':
+      case 'openrouter-error':
+      case 'localgpu-error': {
         if (isLegacyTaskMasterInstallError(latestMessage.error)) {
           break;
         }
@@ -699,6 +808,13 @@ export function useChatRealtimeHandlers({
         flushAndFinalizePendingStream();
         clearLoadingIndicators();
         markSessionsAsCompleted(erroredSessionId, currentSessionId, selectedSession?.id);
+        // Clear pendingSessionId for the errored session (not all sessions — other tabs may be active)
+        if (typeof window !== 'undefined') {
+          const pendingSessionId = sessionStorage.getItem('pendingSessionId');
+          if (pendingSessionId && (!erroredSessionId || pendingSessionId === erroredSessionId)) {
+            sessionStorage.removeItem('pendingSessionId');
+          }
+        }
         setPendingPermissionRequests([]);
         const details = typeof latestMessage.details === 'string' ? latestMessage.details.trim() : '';
         const errorContent = details
@@ -715,6 +831,8 @@ export function useChatRealtimeHandlers({
               type: 'error',
               content: errorContent,
               timestamp: new Date(),
+              errorType: latestMessage.errorType,
+              isRetryable: latestMessage.isRetryable === true,
             },
           ];
         });
@@ -758,7 +876,7 @@ export function useChatRealtimeHandlers({
         setPendingPermissionRequests([]);
         setChatMessages((previous) => [
           ...previous,
-          { type: 'error', content: `Cursor error: ${latestMessage.error || 'Unknown error'}`, timestamp: new Date() },
+          { type: 'error', content: `Cursor error: ${latestMessage.error || 'Unknown error'}`, timestamp: new Date(), errorType: latestMessage.errorType, isRetryable: latestMessage.isRetryable === true },
         ]);
         break;
 
@@ -895,6 +1013,11 @@ export function useChatRealtimeHandlers({
               break;
 
             case 'command_execution':
+              if (lifecycle !== 'completed') {
+                setStatusTextOverride(i18n.t('chat:status.runningCode'));
+              } else {
+                setStatusTextOverride(null);
+              }
               if (codexData.command) {
                 const exitCode = codexData.exitCode;
                 const output = codexData.output;
@@ -1170,7 +1293,7 @@ export function useChatRealtimeHandlers({
         clearLoadingIndicators();
         markSessionsAsCompleted(latestMessage.sessionId, currentSessionId, selectedSession?.id);
         setPendingPermissionRequests([]);
-        setChatMessages((previous) => [...previous, { type: 'error', content: latestMessage.error || 'An error occurred with Codex', timestamp: new Date() }]);
+        setChatMessages((previous) => [...previous, { type: 'error', content: latestMessage.error || 'An error occurred with Codex', timestamp: new Date(), errorType: latestMessage.errorType, isRetryable: latestMessage.isRetryable === true }]);
         break;
 
       case 'session-aborted': {
@@ -1271,7 +1394,7 @@ export function useChatRealtimeHandlers({
     }
   }, [
     latestMessage, provider, selectedProject, selectedSession, currentSessionId, setCurrentSessionId,
-    setChatMessages, setIsLoading, setCanAbortSession, setClaudeStatus, setTokenBudget,
+    setChatMessages, setIsLoading, setCanAbortSession, setClaudeStatus, setStatusTextOverride, setTokenBudget,
     setIsSystemSessionChange, setPendingPermissionRequests, onSessionInactive, onSessionProcessing,
     onSessionNotProcessing, onSessionStatusResolved, onReplaceTemporarySession, onNavigateToSession,
   ]);

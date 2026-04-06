@@ -19,6 +19,14 @@ export interface ChatImage {
   mimeType?: string;
 }
 
+export interface ChatAttachment {
+  name: string;
+  kind: 'image' | 'pdf' | 'file';
+  mimeType?: string;
+  path?: string;
+  extractedTextPreview?: string;
+}
+
 export interface ToolResult {
   content?: unknown;
   isError?: boolean;
@@ -35,11 +43,19 @@ export interface SubagentChildTool {
   timestamp: Date;
 }
 
+export interface AttachedPrompt {
+  scenarioId: string;
+  scenarioIcon: string;
+  scenarioTitle: string;
+  promptText: string;
+}
+
 export interface ChatMessage {
   type: string;
   content?: string;
   timestamp: string | number | Date;
   images?: ChatImage[];
+  attachments?: ChatAttachment[];
   reasoning?: string;
   isThinking?: boolean;
   isStreaming?: boolean;
@@ -57,6 +73,9 @@ export interface ChatMessage {
     currentToolIndex: number;
     isComplete: boolean;
   };
+  attachedPrompt?: AttachedPrompt;
+  errorType?: 'usage_limit' | 'overloaded' | 'network' | 'auth' | 'unknown';
+  isRetryable?: boolean;
   [key: string]: unknown;
 }
 
@@ -88,6 +107,14 @@ export interface PendingPermissionRequest {
   context?: unknown;
   sessionId?: string | null;
   receivedAt?: Date;
+}
+
+export interface TokenBudget {
+  used?: number | null;
+  total?: number | null;
+  unsupportedContext?: boolean;
+  message?: string;
+  lifetimeTokens?: number;
 }
 
 export interface QuestionOption {
@@ -129,11 +156,12 @@ export interface ChatInterfaceProps {
   sendByCtrlEnter?: boolean;
   externalMessageUpdate?: number;
   onTaskClick?: (...args: unknown[]) => void;
-  onShowAllTasks?: (() => void) | null;
+  onStartWorkspaceQa?: (project: Project, prompt: string) => void;
   pendingAutoIntake?: PendingAutoIntake | null;
   clearPendingAutoIntake?: () => void;
   importedProjectAnalysisPrompt?: ImportedProjectAnalysisPrompt | null;
   clearImportedProjectAnalysisPrompt?: () => void;
+  onOpenShellForSession?: () => void;
   initialInputDraft?: string | null;
   newSessionMode?: SessionMode;
   onNewSessionModeChange?: (mode: SessionMode) => void;

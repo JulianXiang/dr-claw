@@ -219,6 +219,9 @@ function Shell({ selectedProject, selectedSession, initialCommand, isPlainShell 
             setAuthUrl(data.url);
             setAuthUrlCopyStatus('idle');
             setIsAuthPanelHidden(false);
+            if (data.autoOpen) {
+              openAuthUrlInBrowser(data.url);
+            }
           } else if (data.type === 'url_open') {
             if (data.url) {
               authUrlRef.current = data.url;

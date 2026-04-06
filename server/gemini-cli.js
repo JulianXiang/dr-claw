@@ -7,8 +7,11 @@ import { createRequestId, waitForToolApproval, matchesToolPermission } from './u
 import { encodeProjectPath, ensureProjectSkillLinks, reconcileGeminiSessionIndex } from './projects.js';
 import { writeProjectTemplates } from './templates/index.js';
 import { stripInternalContextPrefix } from './utils/sessionFormatting.js';
-import { recordIndexedSession } from './utils/sessionIndex.js';
+import { applyStageTagsToSession, recordIndexedSession } from './utils/sessionIndex.js';
+import { buildTempAttachmentFilename, toPortableAtPath } from './utils/imageAttachmentFiles.js';
 import { splitLegacyGeminiThoughtContent } from '../shared/geminiThoughtParser.js';
+import { classifyError } from '../shared/errorClassifier.js';
+import { buildGeminiThinkingConfig } from '../shared/geminiThinkingSupport.js';
 
 // Use cross-spawn on Windows for better command execution
 const spawnFunction = process.platform === 'win32' ? crossSpawn : spawn;
@@ -394,9 +397,7 @@ async function handleGeminiAttachments(command, attachments, workingDir) {
       const matches = data.match(/^data:([^;]+);base64,(.+)$/);
       if (!matches) continue;
       const [, mimeType, base64Data] = matches;
-      const ext = mimeType.includes('/') ? mimeType.split('/')[1] : 'bin';
-      const originalName = item?.name ? String(item.name).replace(/[^a-zA-Z0-9._-]/g, '_') : null;
-      const filename = originalName || `attachment_${index}.${ext}`;
+      const filename = buildTempAttachmentFilename(index, item?.name, mimeType);
       const filepath = path.join(tempDir, filename);
       await fs.writeFile(filepath, Buffer.from(base64Data, 'base64'));
       tempFilePaths.push(filepath);
@@ -406,7 +407,10 @@ async function handleGeminiAttachments(command, attachments, workingDir) {
       return { modifiedCommand: command, tempFilePaths, tempDir };
     }
 
-    const note = `\n\n[Attached files]\n${tempFilePaths.map((p, i) => `${i + 1}. ${p}`).join('\n')}`;
+    const referencedPaths = tempFilePaths.map((filePath) => {
+      return toPortableAtPath(filePath, workingDir || process.cwd());
+    });
+    const note = `\n\nAttached files:\n${referencedPaths.join('\n')}`;
     return { modifiedCommand: `${command}${note}`, tempFilePaths, tempDir };
   } catch (error) {
     console.error('[Gemini] Failed to process attachments:', error.message);
@@ -414,14 +418,86 @@ async function handleGeminiAttachments(command, attachments, workingDir) {
   }
 }
 
-async function cleanupGeminiTempFiles(tempFilePaths, tempDir) {
+async function cleanupGeminiTempFiles(tempFilePaths, tempDirs) {
   if (!Array.isArray(tempFilePaths) || tempFilePaths.length === 0) return;
   for (const filePath of tempFilePaths) {
     try { await fs.unlink(filePath); } catch {}
   }
-  if (tempDir) {
+
+  if (!Array.isArray(tempDirs)) return;
+  for (const tempDir of new Set(tempDirs.filter(Boolean))) {
     try { await fs.rm(tempDir, { recursive: true, force: true }); } catch {}
   }
+}
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function deepMergeObjects(baseValue, overrideValue) {
+  if (!isPlainObject(baseValue)) {
+    return isPlainObject(overrideValue) ? { ...overrideValue } : overrideValue;
+  }
+
+  if (!isPlainObject(overrideValue)) {
+    return overrideValue;
+  }
+
+  const merged = { ...baseValue };
+  for (const [key, value] of Object.entries(overrideValue)) {
+    if (isPlainObject(value) && isPlainObject(merged[key])) {
+      merged[key] = deepMergeObjects(merged[key], value);
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+async function prepareGeminiThinkingSettings(model, thinkingMode, env = {}) {
+  const thinkingConfig = buildGeminiThinkingConfig(model, thinkingMode);
+  if (!thinkingConfig || !model) {
+    return null;
+  }
+
+  const aliasName = '__dr_claw_session_model';
+  const overrideSettings = {
+    modelConfigs: {
+      customAliases: {
+        [aliasName]: {
+          extends: model,
+          modelConfig: {
+            model,
+            generateContentConfig: {
+              thinkingConfig,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  let mergedSettings = overrideSettings;
+  const inheritedSettingsPath = env.GEMINI_CLI_SYSTEM_SETTINGS_PATH;
+  if (inheritedSettingsPath) {
+    try {
+      const inheritedContent = await fs.readFile(inheritedSettingsPath, 'utf8');
+      const inheritedSettings = JSON.parse(inheritedContent);
+      mergedSettings = deepMergeObjects(inheritedSettings, overrideSettings);
+    } catch (error) {
+      console.warn(`[Gemini] Failed to read inherited system settings: ${error.message}`);
+    }
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dr-claw-gemini-settings-'));
+  const settingsPath = path.join(tempDir, 'settings.json');
+  await fs.writeFile(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf8');
+
+  return {
+    cliModel: aliasName,
+    settingsPath,
+    tempDir,
+  };
 }
 
 /**
@@ -474,7 +550,7 @@ async function syncSessionMetadata(sessionId, projectPath, sessionMode = 'resear
  */
 export async function spawnGemini(command, options = {}, ws) {
   return new Promise(async (resolve, reject) => {
-    const { sessionId, projectPath, cwd, model, images, attachments, permissionMode, toolsSettings, sessionMode, env } = options;
+    const { sessionId, projectPath, cwd, model, images, attachments, permissionMode, thinkingMode, toolsSettings, sessionMode, stageTagKeys, stageTagSource = 'task_context', env } = options;
     let capturedSessionId = sessionId;
     let sessionCreatedSent = false;
     let messageStartedSent = false;
@@ -482,7 +558,7 @@ export async function spawnGemini(command, options = {}, ws) {
     let currentBlockIndex = 0;
     let messageBuffer = '';
     let tempFilePaths = [];
-    let tempDir = null;
+    const tempDirs = [];
     // Default: do not hard-require native write_todos.
     // Keep compatibility with markdown/shim flows unless explicitly enabled.
     const requireWriteTodos = Boolean(toolsSettings?.enforceNativeTodos) &&
@@ -494,6 +570,16 @@ export async function spawnGemini(command, options = {}, ws) {
     let policyViolationTriggered = false;
     
     const workingDir = cwd || projectPath || process.cwd();
+
+    // Synchronous (better-sqlite3) — no await needed.
+    if (sessionId && workingDir) {
+      applyStageTagsToSession({
+        sessionId,
+        projectPath: workingDir,
+        stageTagKeys,
+        source: stageTagSource,
+      });
+    }
 
     // Keep Gemini session bootstrap parity with Claude sessions:
     // ensure skill links and instruction templates exist in project workspace.
@@ -523,13 +609,11 @@ export async function spawnGemini(command, options = {}, ws) {
       const effectiveAttachments = attachments || images;
       const attachmentResult = await handleGeminiAttachments(command, effectiveAttachments, workingDir);
       tempFilePaths = attachmentResult.tempFilePaths;
-      tempDir = attachmentResult.tempDir;
+      if (attachmentResult.tempDir) {
+        tempDirs.push(attachmentResult.tempDir);
+      }
       const effectivePrompt = `${attachmentResult.modifiedCommand}`;
       args.push('--prompt', effectivePrompt);
-
-      if (model) {
-        args.push('--model', model);
-      }
 
       // Keep Gemini CLI in yolo mode internally and enforce policy in our own approval hook.
       // In non-interactive server sessions, Gemini's own policy prompts can deny tools unexpectedly.
@@ -564,6 +648,20 @@ export async function spawnGemini(command, options = {}, ws) {
     delete cleanEnv.TERM_PROGRAM;
     delete cleanEnv.TERM_PROGRAM_VERSION;
     delete cleanEnv.ITERM_SESSION_ID;
+
+    const thinkingSettings = await prepareGeminiThinkingSettings(model, thinkingMode, cleanEnv);
+    const effectiveCliModel = thinkingSettings?.cliModel || model;
+    if (thinkingSettings?.settingsPath) {
+      cleanEnv.GEMINI_CLI_SYSTEM_SETTINGS_PATH = thinkingSettings.settingsPath;
+      tempFilePaths.push(thinkingSettings.settingsPath);
+      if (thinkingSettings.tempDir) {
+        tempDirs.push(thinkingSettings.tempDir);
+      }
+    }
+
+    if (effectiveCliModel && command && command.trim()) {
+      args.splice(2, 0, '--model', effectiveCliModel);
+    }
     
     const escapedArgs = args.map(a => a.includes(' ') ? `"${a.replace(/"/g, '\\"')}"` : a);
     console.log(`[Gemini] Spawning (YOLO-Control): ${geminiCommand} ${escapedArgs.join(' ')}`);
@@ -670,9 +768,14 @@ export async function spawnGemini(command, options = {}, ws) {
         return;
       }
       lastSentGeminiErrorSummary = summary;
+
+      const { errorType, isRetryable } = classifyError(summary);
+
       ws.send({
         type: 'gemini-error',
         error: summary,
+        errorType,
+        isRetryable,
         ...(typeof details === 'string' && details.trim() ? { details } : {}),
         sessionId: capturedSessionId || sessionId || null
       });
@@ -814,6 +917,8 @@ export async function spawnGemini(command, options = {}, ws) {
                   provider: 'gemini',
                   projectPath: workingDir,
                   sessionMode: sessionMode || 'research',
+                  stageTagKeys,
+                  tagSource: stageTagSource,
                 });
                 ws.send({ type: 'session-created', sessionId: capturedSessionId, provider: 'gemini', mode: sessionMode || 'research' });
               }
@@ -1169,7 +1274,7 @@ export async function spawnGemini(command, options = {}, ws) {
       const finalSessionId = capturedSessionId || sessionId || initialKey;
       const sessionData = activeGeminiSessions.get(finalSessionId);
       if (sessionData?.heartbeat) clearInterval(sessionData.heartbeat);
-      await cleanupGeminiTempFiles(tempFilePaths, tempDir);
+      await cleanupGeminiTempFiles(tempFilePaths, tempDirs);
       // Send completion event immediately so the UI can settle
       ws.send({ type: 'gemini-complete', sessionId: finalSessionId, exitCode: code, isNewSession: (!sessionId || sessionId.startsWith('new-session-')) && !!command });
       activeGeminiSessions.delete(finalSessionId);
@@ -1194,7 +1299,7 @@ export async function spawnGemini(command, options = {}, ws) {
       const sessionData = activeGeminiSessions.get(finalSessionId);
       if (sessionData && sessionData.heartbeat) clearInterval(sessionData.heartbeat);
       activeGeminiSessions.delete(finalSessionId);
-      cleanupGeminiTempFiles(tempFilePaths, tempDir).catch(() => {});
+      cleanupGeminiTempFiles(tempFilePaths, tempDirs).catch(() => {});
       sendGeminiError(error.message);
       reject(error);
     });

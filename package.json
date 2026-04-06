@@ -1,7 +1,7 @@
 {
   "name": "dr-claw",
-  "version": "1.0.0",
-  "description": "Dr. Claw — Desktop and mobile UI for Claude Code, Cursor CLI and Codex with Research Lab",
+  "version": "1.1.2",
+  "description": "Dr. Claw — Desktop and mobile UI for Claude Code, Cursor CLI, Codex, and OpenRouter with Research Lab",
   "type": "module",
   "main": "server/index.js",
   "bin": {
@@ -25,6 +25,7 @@
     "url": "https://github.com/OpenLAIR/dr-claw/issues"
   },
   "scripts": {
+    "predev": "node scripts/check-deps.js",
     "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
     "server": "node --watch-path=./server/routes --watch-path=./server/middleware --watch-path=./server/database --watch-path=./server/utils --watch-path=./server/constants --watch-path=./server/index.js server/index.js",
     "client": "vite --host",
@@ -42,6 +43,7 @@
     "claude code",
     "ai",
     "anthropic",
+    "openrouter",
     "ui",
     "mobile"
   ],

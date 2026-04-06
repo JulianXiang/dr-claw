@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
 
 import ChatInterface from '../../chat/view/ChatInterface';
-import FileTree from '../../FileTree';
 import GitPanel from '../../GitPanel';
-import ResearchLab from '../../ResearchLab';
 import SkillsDashboard from '../../SkillsDashboard';
 import ComputePanel from '../../ComputePanel';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -22,6 +20,7 @@ import { useTaskMaster } from '../../../contexts/TaskMasterContext';
 import { useUiPreferences } from '../../../hooks/useUiPreferences';
 import { useEditorSidebar } from '../hooks/useEditorSidebar';
 import type { Project } from '../../../types/app';
+import type { Reference } from '../../references/types';
 
 const AnyGitPanel = GitPanel as any;
 
@@ -60,6 +59,7 @@ function MainContent({
   clearImportedProjectAnalysisPrompt,
   onProjectSelect,
   onStartWorkspaceQa,
+  onChatFromReference,
   newSessionMode,
   onNewSessionModeChange,
 }: MainContentProps) {
@@ -89,9 +89,11 @@ function MainContent({
     }
   }, [selectedProject, currentProject, setCurrentProject]);
 
+  // Migration shim: redirect legacy tab values from before PR #130 merged
+  // Research Lab and Files into the sidebar. Safe to remove after 2026-07-01.
   useEffect(() => {
-    if (activeTab === 'tasks') {
-      setActiveTab('researchlab');
+    if (activeTab === 'tasks' || activeTab === 'researchlab' || activeTab === 'files') {
+      setActiveTab('chat');
     }
   }, [activeTab, setActiveTab]);
 
@@ -239,50 +241,35 @@ function MainContent({
                 autoScrollToBottom={autoScrollToBottom}
                 sendByCtrlEnter={sendByCtrlEnter}
                 externalMessageUpdate={externalMessageUpdate}
-                onShowAllTasks={() => setActiveTab('researchlab')}
+                onStartWorkspaceQa={onStartWorkspaceQa}
                 pendingAutoIntake={pendingAutoIntake}
                 clearPendingAutoIntake={clearPendingAutoIntake}
                 importedProjectAnalysisPrompt={importedProjectAnalysisPrompt}
                 clearImportedProjectAnalysisPrompt={clearImportedProjectAnalysisPrompt}
+                onOpenShellForSession={() => setActiveTab('shell')}
                 newSessionMode={newSessionMode}
                 onNewSessionModeChange={onNewSessionModeChange}
               />
             </ErrorBoundary>
           </div>
 
-          {activeTab === 'files' && (
-            <div className="h-full overflow-hidden">
-              <FileTree
-                selectedProject={selectedProject}
-                onFileOpen={handleFileOpen}
-                onStartWorkspaceQa={onStartWorkspaceQa}
-              />
-            </div>
-          )}
-
           {activeTab === 'shell' && (
             <div className="h-full w-full overflow-hidden">
-              <ShellWorkspace project={selectedProject} />
+              <ShellWorkspace project={selectedProject} session={selectedSession} />
             </div>
           )}
 
           {activeTab === 'git' && (
-            <div className="h-full overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <AnyGitPanel selectedProject={selectedProject} isMobile={isMobile} onFileOpen={handleFileOpen} />
             </div>
           )}
 
           {activeTab === 'survey' && (
             <div className="h-full overflow-hidden">
-              <SurveyPage selectedProject={selectedProject} />
-            </div>
-          )}
-
-          {activeTab === 'researchlab' && (
-            <div className="h-full overflow-hidden">
-              <ResearchLab
+              <SurveyPage
                 selectedProject={selectedProject}
-                onNavigateToChat={() => setActiveTab('chat')}
+                onChatFromReference={onChatFromReference ? (ref: Reference) => onChatFromReference(selectedProject, ref) : undefined}
               />
             </div>
           )}

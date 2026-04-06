@@ -47,7 +47,7 @@ test('checkCodexCredentials accepts server OPENAI_API_KEY when auth.json is abse
     const result = await checkCodexCredentials();
 
     assert.equal(result.authenticated, true);
-    assert.equal(result.email, 'API Key (Env)');
+    assert.equal(result.email, 'API Key Connected');
     assert.equal(result.cliAvailable, true);
     assert.equal(result.cliCommand, process.execPath);
   });
