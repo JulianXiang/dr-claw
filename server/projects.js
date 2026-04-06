@@ -84,6 +84,8 @@ const CURRENT_DEFAULT_WORKSPACES_ROOT = path.join(os.homedir(), 'dr-claw');
 const DELETED_PROJECTS_CONFIG_KEY = '_deletedProjects';
 
 let projectConfigMutationQueue = Promise.resolve();
+let _lastBootstrapTimestamp = 0;
+const BOOTSTRAP_STALENESS_MS = 60_000; // Only re-scan legacy sources every 60 seconds
 
 function isProjectTrashed(projectInfo = null, dbEntry = null) {
   return Boolean(projectInfo?.trash?.trashedAt || dbEntry?.metadata?.trash?.trashedAt);
@@ -1279,15 +1281,19 @@ async function getProjects(userId, progressCallback = null) {
   let totalProjects = 0;
   let processedProjects = 0;
 
-  // Always sync from legacy sources so CLI-created projects appear in the
-  // web UI. Previously this only ran when the database was empty, meaning
-  // projects created after the first run were never discovered. See #86.
-  await bootstrapProjectsIndexFromLegacySources(
-    config,
-    projectDb,
-    userId || null,
-    visibleWorkspaceRoots,
-  );
+  // Sync from legacy sources so CLI-created projects appear in the web UI.
+  // Only re-scan if the last bootstrap was more than 60 seconds ago to avoid
+  // O(N) filesystem walks on every getProjects() call. See #86.
+  const now = Date.now();
+  if (now - _lastBootstrapTimestamp > BOOTSTRAP_STALENESS_MS) {
+    await bootstrapProjectsIndexFromLegacySources(
+      config,
+      projectDb,
+      userId || null,
+      visibleWorkspaceRoots,
+    );
+    _lastBootstrapTimestamp = now;
+  }
   await syncDiscoveredProjectsFromCodexSessions(config, projectDb, userId || null, visibleWorkspaceRoots);
   const dbProjects = projectDb.getAllProjects(userId || null);
 
@@ -2970,7 +2976,12 @@ async function addProjectManually(projectPath, displayName = null, userId = null
   const existing = projectDb.getProjectByPath(absolutePath, userId ?? null);
   const effectiveId = existing ? existing.id : projectName;
 
-  projectDb.upsertProject(effectiveId, userId, displayName, absolutePath, 0, new Date().toISOString(), { manuallyAdded: true });
+  // Preserve existing values so the upsert doesn't silently clear them
+  const preservedStarred = existing?.is_starred || 0;
+  const mergedMetadata = { ...(existing?.metadata || {}), manuallyAdded: true };
+  const preservedLastAccessed = existing?.last_accessed || new Date().toISOString();
+
+  projectDb.upsertProject(effectiveId, userId, displayName, absolutePath, preservedStarred, preservedLastAccessed, mergedMetadata);
 
   await mutateProjectConfig((config) => {
     config[effectiveId] = {
