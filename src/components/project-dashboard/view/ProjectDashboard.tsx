@@ -686,7 +686,7 @@ export default function ProjectDashboard({
                 key={project.name}
                 className={`relative overflow-hidden rounded-2xl border border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.90),rgba(248,250,252,0.82))] p-4 shadow-sm transition-all duration-200 ${tone.border} hover:-translate-y-0.5 hover:shadow-md dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.82))]`}
               >
-                <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-r ${tone.shell}`} />
+                <div className={`absolute inset-x-0 top-0 h-24 bg-gradient-to-r ${tone.shell}`} />
                 <div className={`absolute right-4 top-4 h-12 w-12 rounded-full blur-2xl ${tone.orb}`} />
 
                 <div className="relative flex flex-col gap-3">
