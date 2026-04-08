@@ -9,8 +9,6 @@ import {
   Trash2,
   Edit3,
   Play,
-  Upload,
-  Download,
   Terminal,
   RefreshCw,
   CheckCircle,
@@ -64,7 +62,7 @@ export default function NodeCard({
   onDisconnect,
   onDelete,
   onNodeUpdated,
-  selectedProjectPath,
+  onSetActive,
 }: {
   data: NodeWithMonitor;
   isConnected: boolean;
@@ -72,7 +70,7 @@ export default function NodeCard({
   onDisconnect: () => void;
   onDelete: () => void;
   onNodeUpdated: () => void;
-  selectedProjectPath?: string;
+  onSetActive: () => void;
 }) {
   const { node, monitor, loading, isActive } = data;
   const hasData = monitor?.success && (monitor.gpus.length > 0 || monitor.cpu);
@@ -89,8 +87,7 @@ export default function NodeCard({
   const [runCmd, setRunCmd] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [runResult, setRunResult] = useState<ActionResult | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<ActionResult | null>(null);
+  const [isSettingActive, setIsSettingActive] = useState(false);
 
   const handleTest = async () => {
     setIsTesting(true);
@@ -111,7 +108,7 @@ export default function NodeCard({
     setIsRunning(true);
     setRunResult(null);
     try {
-      const res = await api.compute.runOnNode(node.id, runCmd.trim(), selectedProjectPath || undefined, true);
+      const res = await api.compute.runOnNode(node.id, runCmd.trim(), node.workDir || undefined, true);
       const d = await res.json();
       setRunResult(d);
     } catch (err: unknown) {
@@ -121,18 +118,12 @@ export default function NodeCard({
     }
   };
 
-  const handleSync = async (direction: 'up' | 'down') => {
-    if (!selectedProjectPath) return;
-    setIsSyncing(true);
-    setSyncResult(null);
+  const handleSetActive = async () => {
+    setIsSettingActive(true);
     try {
-      const res = await api.compute.syncNode(node.id, direction, selectedProjectPath);
-      const d = await res.json();
-      setSyncResult(d);
-    } catch (err: unknown) {
-      setSyncResult({ success: false, error: err instanceof Error ? err.message : 'Sync failed' });
+      await onSetActive();
     } finally {
-      setIsSyncing(false);
+      setIsSettingActive(false);
     }
   };
 
@@ -234,40 +225,6 @@ export default function NodeCard({
             <ResultBlock result={runResult} />
           </div>
 
-          {/* Code sync */}
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Code Sync</label>
-            {selectedProjectPath ? (
-              <div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl flex-1"
-                    onClick={() => void handleSync('up')}
-                    disabled={isSyncing}
-                  >
-                    {isSyncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
-                    Sync Up
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl flex-1"
-                    onClick={() => void handleSync('down')}
-                    disabled={isSyncing}
-                  >
-                    <Download className="w-3.5 h-3.5 mr-1.5" />
-                    Sync Down
-                  </Button>
-                </div>
-                <ResultBlock result={syncResult} />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Select a project above to enable code sync</p>
-            )}
-          </div>
-
           {/* SSH Terminal toggle */}
           <Button
             variant={showTerminal ? 'default' : 'outline'}
@@ -349,6 +306,18 @@ export default function NodeCard({
             <Edit3 className="h-3.5 w-3.5 mr-1.5" />
             Edit
           </Button>
+          {!isActive && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-xl text-muted-foreground"
+              onClick={() => void handleSetActive()}
+              disabled={isSettingActive}
+            >
+              {isSettingActive ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Server className="h-3.5 w-3.5 mr-1.5" />}
+              Set as Active
+            </Button>
+          )}
         </div>
 
         {confirmDelete ? (

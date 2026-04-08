@@ -13,7 +13,7 @@ import { api } from '../../utils/api';
 import { ResourceCards, SummaryCard } from './ResourceCards';
 import NodeCard from './NodeCard';
 import NodeForm from './NodeForm';
-import type { LocalMonitorData, MonitorData, ComputeNode, NodeWithMonitor, SimpleProject } from './types';
+import type { LocalMonitorData, MonitorData, ComputeNode, NodeWithMonitor } from './types';
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -26,8 +26,6 @@ export default function ComputeResourcesDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [projects, setProjects] = useState<SimpleProject[]>([]);
-  const [selectedProjectPath, setSelectedProjectPath] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ─── Data fetchers ───
@@ -158,6 +156,14 @@ export default function ComputeResourcesDashboard() {
     );
   }, [fetchNodes, connectedNodeIds]);
 
+  const handleSetActive = useCallback(
+    async (nodeId: string) => {
+      await api.compute.setActive(nodeId);
+      await reloadNodes();
+    },
+    [reloadNodes],
+  );
+
   const handleDeleteNode = useCallback(
     async (nodeId: string) => {
       try {
@@ -219,14 +225,6 @@ export default function ComputeResourcesDashboard() {
     void loadInitialRef.current();
   }, []);
 
-  // Load projects for the selector
-  useEffect(() => {
-    api.projects()
-      .then((r: Response) => r.json())
-      .then((data: SimpleProject[]) => setProjects(data))
-      .catch(() => {});
-  }, []);
-
   const pollConnectedRef = useRef(pollConnected);
   pollConnectedRef.current = pollConnected;
 
@@ -275,21 +273,6 @@ export default function ComputeResourcesDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Project selector */}
-            {projects.length > 0 && (
-              <select
-                className="rounded-xl border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring h-9"
-                value={selectedProjectPath}
-                onChange={(e) => setSelectedProjectPath(e.target.value)}
-              >
-                <option value="">No project selected</option>
-                {projects.map((p) => (
-                  <option key={p.path} value={p.fullPath || p.path}>
-                    {p.displayName || p.name}
-                  </option>
-                ))}
-              </select>
-            )}
             <Button
               variant="outline"
               size="sm"
@@ -411,7 +394,7 @@ export default function ComputeResourcesDashboard() {
                     onDisconnect={() => disconnectNode(data.node.id)}
                     onDelete={() => void handleDeleteNode(data.node.id)}
                     onNodeUpdated={() => void reloadNodes()}
-                    selectedProjectPath={selectedProjectPath || undefined}
+                    onSetActive={() => void handleSetActive(data.node.id)}
                   />
                 ))}
               </div>
