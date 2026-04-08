@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   RefreshCw,
   Laptop,
@@ -7,9 +7,14 @@ import {
   Loader2,
   Plus,
   Server,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
 import { api } from '../../utils/api';
+import useLocalStorage from '../../hooks/useLocalStorage';
 import { ResourceCards, SummaryCard } from './ResourceCards';
 import NodeCard from './NodeCard';
 import NodeForm from './NodeForm';
@@ -17,7 +22,61 @@ import type { LocalMonitorData, MonitorData, ComputeNode, NodeWithMonitor } from
 
 const POLL_INTERVAL_MS = 15_000;
 
+type LocaleKey = 'en' | 'zh' | 'ko';
+
+function resolveLocaleKey(lang: string): LocaleKey {
+  if (lang.startsWith('zh')) return 'zh';
+  if (lang.startsWith('ko')) return 'ko';
+  return 'en';
+}
+
+const TEXT: Record<LocaleKey, Record<string, string>> = {
+  zh: {
+    guideTitle: '如何使用 Compute Nodes',
+    guideDesc: '只需 5 步即可配置并监控远程计算节点。',
+    guideStep1: '点击右上角的"Add Node"注册新的远程计算节点。',
+    guideStep2: '填写节点详情（名称、主机地址、端口）并保存。',
+    guideStep3: '在目标服务器上运行提供的配置脚本建立连接。',
+    guideStep4: '连接成功后，可在此仪表板实时监控 GPU 和 CPU 使用率。',
+    guideStep5: '将节点设为"Active"（活动状态），即可自动将 AI 计算任务路由至该节点。',
+    guideCollapse: '收起',
+    guideExpand: '展开',
+    guideDismiss: '不再显示',
+  },
+  en: {
+    guideTitle: 'How to use Compute Nodes',
+    guideDesc: 'Set up and monitor remote compute nodes in 5 easy steps.',
+    guideStep1: "Click 'Add Node' to register a new remote compute node.",
+    guideStep2: 'Fill in the node details (name, host, port) and save.',
+    guideStep3: 'Run the provided configuration script on your remote server to establish a connection.',
+    guideStep4: 'Once connected, monitor real-time GPU and CPU utilization directly from this dashboard.',
+    guideStep5: "Set a node as 'Active' to route AI compute jobs to it automatically.",
+    guideCollapse: 'Collapse',
+    guideExpand: 'Expand',
+    guideDismiss: 'Remove forever',
+  },
+  ko: {
+    guideTitle: 'Compute Nodes 사용 방법',
+    guideDesc: '5단계로 원격 컴퓨팅 노드를 설정하고 모니터링하세요.',
+    guideStep1: "오른쪽 상단의 'Add Node'를 클릭하여 새 노드를 등록합니다.",
+    guideStep2: '노드 세부 정보(이름, 호스트, 포트)를 입력하고 저장합니다.',
+    guideStep3: '제공된 설정 스크립트를 원격 서버에서 실행하여 연결을 설정합니다.',
+    guideStep4: '연결되면 이 대시보드에서 실시간으로 GPU 및 CPU 사용률을 모니터링할 수 있습니다.',
+    guideStep5: "노드를 'Active'로 설정하면 AI 컴퓨팅 작업이 해당 노드로 자동 라우팅됩니다.",
+    guideCollapse: '접기',
+    guideExpand: '펼치기',
+    guideDismiss: '다시 표시 안 함',
+  },
+};
+
 export default function ComputeResourcesDashboard() {
+  const { i18n } = useTranslation();
+  const locale = useMemo(() => resolveLocaleKey(i18n.language || 'en'), [i18n.language]);
+  const t = TEXT[locale];
+
+  const [guideCollapsed, setGuideCollapsed] = useLocalStorage('compute-node-guide-collapsed', false);
+  const [guideDismissed, setGuideDismissed] = useLocalStorage('compute-node-guide-dismissed', false);
+
   // ─── State ───
   const [localData, setLocalData] = useState<LocalMonitorData | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
@@ -295,6 +354,61 @@ export default function ComputeResourcesDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* Usage guide */}
+        {!guideDismissed && (
+          <div className="relative overflow-hidden rounded-[28px] border border-sky-200/70 bg-[radial-gradient(circle_at_top_left,rgba(125,211,252,0.24),transparent_38%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(239,246,255,0.94))] p-5 shadow-sm dark:border-sky-900/70 dark:bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_38%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.94))]">
+            <div className="absolute -right-10 -top-8 h-28 w-28 rounded-full bg-sky-200/40 blur-3xl dark:bg-sky-500/10" />
+            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-200/80 bg-white/80 text-sky-700 shadow-sm dark:border-sky-900/70 dark:bg-slate-950/50 dark:text-sky-300">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-sky-100">
+                    {t.guideTitle}
+                  </h3>
+                  {!guideCollapsed ? (
+                    <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-sky-100/85">
+                      {t.guideDesc}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-600 dark:text-sky-100/70">
+                      {locale === 'zh' ? '教程已折叠，点击展开查看。' : 'Guide hidden. Expand to view steps.'}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-slate-700 hover:bg-sky-100/60 hover:text-slate-900 dark:text-sky-100/80 dark:hover:bg-sky-900/30 dark:hover:text-sky-100"
+                  onClick={() => setGuideCollapsed(!guideCollapsed)}
+                >
+                  {guideCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  {guideCollapsed ? t.guideExpand : t.guideCollapse}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-slate-700 hover:bg-sky-100/60 hover:text-slate-900 dark:text-sky-100/80 dark:hover:bg-sky-900/30 dark:hover:text-sky-100"
+                  onClick={() => setGuideDismissed(true)}
+                >
+                  <X className="h-4 w-4" />
+                  {t.guideDismiss}
+                </button>
+              </div>
+            </div>
+            {!guideCollapsed && (
+              <div className="relative mt-4 space-y-3 pl-14">
+                <ol className="list-decimal pl-4 space-y-1.5 text-sm text-slate-700 dark:text-sky-100/85">
+                  {(['guideStep1', 'guideStep2', 'guideStep3', 'guideStep4', 'guideStep5'] as const).map((key) => (
+                    <li key={key}>{t[key]}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+        )}
 
         {initialLoad ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
