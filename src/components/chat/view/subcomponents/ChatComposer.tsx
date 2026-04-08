@@ -31,6 +31,7 @@ import { authenticatedFetch } from '../../../../utils/api';
 
 // New subcomponents
 import SkillDropdown from './SkillDropdown';
+import AutoResearchDropdown from './AutoResearchDropdown';
 import ModelSelector from './ModelSelector';
 import AgentSelector, { type ProviderDef } from './AgentSelector';
 import OpenRouterModelInput from './OpenRouterModelInput';
@@ -563,12 +564,19 @@ export default function ChatComposer({
 
                   {/* Skill shortcuts — only in normal chat mode */}
                   {!centered && (
-                    <SkillDropdown
-                      setInput={setInput}
-                      textareaRef={textareaRef}
-                      setAttachedPrompt={setAttachedPrompt}
-                      t={t}
-                    />
+                    <>
+                      <AutoResearchDropdown
+                        setInput={setInput}
+                        textareaRef={textareaRef}
+                        setAttachedPrompt={setAttachedPrompt}
+                      />
+                      <SkillDropdown
+                        setInput={setInput}
+                        textareaRef={textareaRef}
+                        setAttachedPrompt={setAttachedPrompt}
+                        t={t}
+                      />
+                    </>
                   )}
 
                   {/* Session modes — only in empty state */}
