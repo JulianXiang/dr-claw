@@ -851,6 +851,17 @@ export function useProjectsState({
     }
   }, [isMobile, navigate]);
 
+  const handleOpenAutoResearch = useCallback(() => {
+    setSelectedProject(null);
+    setSelectedSession(null);
+    setActiveTab('autoresearch');
+    navigate('/');
+
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile, navigate]);
+
   const handleOpenNews = useCallback(() => {
     setSelectedProject(null);
     setSelectedSession(null);
@@ -989,6 +1000,7 @@ export function useProjectsState({
       onOpenDashboard: handleOpenDashboard,
       onOpenTrash: handleOpenTrash,
       onOpenSkills: handleOpenSkills,
+      onOpenAutoResearch: handleOpenAutoResearch,
       onOpenNews: handleOpenNews,
       onOpenCompute: handleOpenCompute,
       onImportedProjectCreated: handleProjectCreatedWithIntake,
@@ -1002,6 +1014,7 @@ export function useProjectsState({
       handleNewSession,
       handleOpenCompute,
       handleOpenDashboard,
+      handleOpenAutoResearch,
       handleOpenNews,
       handleOpenSkills,
       handleOpenTrash,
@@ -1056,6 +1069,7 @@ export function useProjectsState({
     handleOpenDashboard,
     handleOpenTrash,
     handleOpenSkills,
+    handleOpenAutoResearch,
     handleOpenNews,
     handleOpenCompute,
     handleNewSession,

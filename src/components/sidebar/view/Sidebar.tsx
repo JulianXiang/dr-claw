@@ -42,6 +42,7 @@ function Sidebar({
   onOpenDashboard,
   onOpenTrash,
   onOpenSkills,
+  onOpenAutoResearch,
   onOpenNews,
   onOpenCompute,
   onImportedProjectCreated,
@@ -294,6 +295,7 @@ function Sidebar({
             onOpenDashboard={onOpenDashboard}
             onOpenTrash={onOpenTrash}
             onOpenSkills={onOpenSkills}
+            onOpenAutoResearch={onOpenAutoResearch}
             onOpenNews={onOpenNews}
             onOpenCompute={onOpenCompute}
             onCreateProject={() => setShowWizard(true)}

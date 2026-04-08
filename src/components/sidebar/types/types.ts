@@ -47,6 +47,7 @@ export type SidebarProps = {
   onOpenDashboard: () => void;
   onOpenTrash: () => void;
   onOpenSkills: () => void;
+  onOpenAutoResearch: () => void;
   onOpenNews: () => void;
   onOpenCompute: () => void;
   onImportedProjectCreated?: (project: Project, options?: ProjectCreationOptions) => void;

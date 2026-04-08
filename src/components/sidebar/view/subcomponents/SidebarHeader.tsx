@@ -1,4 +1,4 @@
-import { Blocks, FolderPlus, LayoutDashboard, Monitor, Newspaper, PanelLeftClose, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { Blocks, FlaskConical, FolderPlus, LayoutDashboard, Monitor, Newspaper, PanelLeftClose, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import type { AppTab } from '../../../../types/app';
 import { Button } from '../../../ui/button';
@@ -19,6 +19,7 @@ type SidebarHeaderProps = {
   onOpenDashboard: () => void;
   onOpenTrash: () => void;
   onOpenSkills: () => void;
+  onOpenAutoResearch: () => void;
   onOpenNews: () => void;
   onOpenCompute: () => void;
   onCreateProject: () => void;
@@ -40,6 +41,7 @@ export default function SidebarHeader({
   onOpenDashboard,
   onOpenTrash,
   onOpenSkills,
+  onOpenAutoResearch,
   onOpenNews,
   onOpenCompute,
   onCreateProject,
@@ -154,6 +156,17 @@ export default function SidebarHeader({
             >
               <Newspaper className="h-4 w-4" />
               {t('common:tabs.news')}
+            </Button>
+
+            <Button
+              type="button"
+              variant={activeTab === 'autoresearch' ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-9 w-full justify-start rounded-xl"
+              onClick={onOpenAutoResearch}
+            >
+              <FlaskConical className="h-4 w-4" />
+              {t('common:tabs.autoResearch', { defaultValue: 'Auto Research' })}
             </Button>
 
             <Button
@@ -275,6 +288,16 @@ export default function SidebarHeader({
             >
               <Newspaper className="h-4 w-4" />
               {t('common:tabs.news')}
+            </Button>
+
+            <Button
+              type="button"
+              variant={activeTab === 'autoresearch' ? 'secondary' : 'outline'}
+              className="h-10 w-full justify-start rounded-xl"
+              onClick={onOpenAutoResearch}
+            >
+              <FlaskConical className="h-4 w-4" />
+              {t('common:tabs.autoResearch', { defaultValue: 'Auto Research' })}
             </Button>
 
             <Button
