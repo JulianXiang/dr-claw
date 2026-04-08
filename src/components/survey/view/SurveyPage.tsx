@@ -427,9 +427,17 @@ export default function SurveyPage({ selectedProject, onChatFromReference }: Sur
 
         setPreview({ loading: false, content, pdfUrl: null, mermaidSvg: null, error: null });
       } catch (previewError) {
-        console.error('Failed to load survey preview:', previewError);
+        const msg = previewError instanceof Error ? previewError.message : '';
+        const isNotFound = msg.includes('preview:404') || msg === 'Not found';
+        const isForbidden = msg.includes('preview:403');
+        if (isNotFound || isForbidden) {
+          console.warn('Survey preview unavailable:', msg);
+        } else {
+          console.warn('Failed to load survey preview:', previewError);
+        }
         if (!isCancelled) {
-          setPreview({ loading: false, content: null, pdfUrl: null, mermaidSvg: null, error: 'preview-failed' });
+          const errorType = isNotFound ? 'not-found' : isForbidden ? 'forbidden' : 'preview-failed';
+          setPreview({ loading: false, content: null, pdfUrl: null, mermaidSvg: null, error: errorType });
         }
       }
     };
@@ -495,9 +503,17 @@ export default function SurveyPage({ selectedProject, onChatFromReference }: Sur
               {t('surveyPage.preview.loading')}
             </div>
           ) : preview.error ? (
-            <div className="flex h-full items-center justify-center rounded-xl border border-destructive/30 bg-background/40 px-6 text-center text-sm text-destructive">
+            <div className={`flex h-full items-center justify-center rounded-xl border px-6 text-center text-sm ${
+              preview.error === 'not-found' || preview.error === 'forbidden'
+                ? 'border-muted-foreground/20 bg-background/40 text-muted-foreground'
+                : 'border-destructive/30 bg-background/40 text-destructive'
+            }`}>
               <AlertCircle className="mr-2 h-4 w-4" />
-              {t('surveyPage.preview.failed')}
+              {preview.error === 'not-found'
+                ? t('surveyPage.preview.notFound')
+                : preview.error === 'forbidden'
+                  ? t('surveyPage.preview.forbidden')
+                  : t('surveyPage.preview.failed')}
             </div>
           ) : (
             <PreviewContent

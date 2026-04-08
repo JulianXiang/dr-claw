@@ -131,6 +131,8 @@
     "preview": {
       "loading": "Loading preview...",
       "failed": "Failed to load the selected item.",
+      "notFound": "File not found — it may have been moved or deleted.",
+      "forbidden": "Permission denied — unable to access this file.",
       "unsupported": "This file type is not previewable yet.",
       "surveyTask": "Task",
       "taskDescription": "Task Description",

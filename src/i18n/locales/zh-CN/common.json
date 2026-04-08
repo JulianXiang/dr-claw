@@ -131,6 +131,8 @@
     "preview": {
       "loading": "正在加载预览...",
       "failed": "加载所选内容失败。",
+      "notFound": "文件未找到，可能已被移动或删除。",
+      "forbidden": "没有权限访问该文件。",
       "unsupported": "该文件类型暂时无法预览。",
       "surveyTask": "任务",
       "taskDescription": "任务描述",

@@ -222,10 +222,12 @@ const ItemButton = ({
 }) => {
   if (compact) {
     return (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onClick}
-        className="group w-full rounded-xl border border-border/60 bg-gradient-to-r from-background via-background to-muted/20 px-2.5 py-2 text-left shadow-sm transition-all hover:border-border hover:from-accent/20 hover:to-accent/10"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
+        className="group w-full rounded-xl border border-border/60 bg-gradient-to-r from-background via-background to-muted/20 px-2.5 py-2 text-left shadow-sm transition-all hover:border-border hover:from-accent/20 hover:to-accent/10 cursor-pointer"
       >
         <div className="flex items-center gap-2.5">
           {thumbnail || <span className={cn('h-2 w-2 flex-shrink-0 rounded-full shadow-sm', unread ? 'bg-amber-500' : 'bg-emerald-500/80')} />}
@@ -236,15 +238,17 @@ const ItemButton = ({
           {meta ? <div className="flex flex-shrink-0 items-center gap-1 whitespace-nowrap pl-1">{meta}</div> : null}
           {action ? <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>{action}</div> : null}
         </div>
-      </button>
+      </div>
     );
   }
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="group w-full rounded-xl border border-border/60 bg-gradient-to-r from-background via-background to-muted/20 px-3 py-2 text-left shadow-sm transition-all hover:border-border hover:from-accent/20 hover:to-accent/10"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
+      className="group w-full rounded-xl border border-border/60 bg-gradient-to-r from-background via-background to-muted/20 px-3 py-2 text-left shadow-sm transition-all hover:border-border hover:from-accent/20 hover:to-accent/10 cursor-pointer"
     >
       <div className="flex items-start gap-2">
         {thumbnail || <span className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${unread ? 'bg-amber-500' : 'bg-emerald-500/70'}`} />}
@@ -270,7 +274,7 @@ const ItemButton = ({
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 };
 
