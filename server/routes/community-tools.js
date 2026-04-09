@@ -127,10 +127,14 @@ router.post('/configure', async (req, res) => {
           gemini: ['mcp', 'add', 'gemini-review', '-s', 'user', '--', 'python3', path.join(resolvedPath, 'skills/aris-infra/mcp-servers/gemini-review/server.py')],
         };
 
+        const ENV_ONLY_BACKENDS = ['gemini-figure'];
         const args = mcpCommands[mcpBackend];
         if (!args) {
-          // No MCP server to register (env-only config like gemini-figure)
-          results.steps.push({ step: 'mcp', status: 'skipped', message: `No MCP server needed for ${mcpBackend}` });
+          if (ENV_ONLY_BACKENDS.includes(mcpBackend)) {
+            results.steps.push({ step: 'mcp', status: 'skipped', message: `No MCP server needed for ${mcpBackend}` });
+          } else {
+            results.errors.push({ step: 'mcp', error: `Unknown backend: ${mcpBackend}` });
+          }
         } else {
           // Check if already registered
           let alreadyRegistered = false;

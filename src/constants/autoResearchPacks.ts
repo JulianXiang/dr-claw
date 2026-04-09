@@ -4,7 +4,7 @@ export type PackConfigOption = {
   key: string;
   label: string;
   install?: string;
-  register: string;
+  register?: string;
   envVars: Array<{ name: string; example: string }>;
 };
 
@@ -70,7 +70,7 @@ export const AUTO_RESEARCH_PACKS: PackDef[] = [
       { name: 'Figure Gen', command: '/inno-figure-gen', description: { zh: 'Gemini 图像生成/编辑', en: 'Gemini image generation/editing', ko: 'Gemini image generation/editing' } },
     ],
     mcp: [
-      { key: 'gemini-figure', label: 'Gemini (Figure Gen)', register: '', envVars: [{ name: 'GEMINI_API_KEY', example: 'your-gemini-api-key' }] },
+      { key: 'gemini-figure', label: 'Gemini (Figure Gen)', envVars: [{ name: 'GEMINI_API_KEY', example: 'your-gemini-api-key' }] },
     ],
     configLabel: {
       zh: { title: '① 环境变量', desc: '配置图片生成所需的 API Key' },

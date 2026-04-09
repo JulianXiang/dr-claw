@@ -426,7 +426,7 @@ export default function AutoResearchHub() {
                                   <p className="mb-0.5 text-xs font-medium text-muted-foreground">{t.register}</p>
                                   <code className="block truncate rounded bg-slate-100 px-2 py-1 text-xs text-foreground dark:bg-slate-800">{mcpOpt.register}</code>
                                 </div>
-                                <button type="button" onClick={() => copyToClipboard(mcpOpt.register)} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-sky-100 hover:text-sky-700 dark:hover:bg-sky-900/30">
+                                <button type="button" onClick={() => copyToClipboard(mcpOpt.register!)} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-sky-100 hover:text-sky-700 dark:hover:bg-sky-900/30">
                                   {copiedCommand === mcpOpt.register ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
                                 </button>
                               </div>
