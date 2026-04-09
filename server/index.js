@@ -48,6 +48,7 @@ import { queryClaudeSDK, abortClaudeSDKSession, isClaudeSDKSessionActive, getCla
 import { spawnCursor, abortCursorSession, isCursorSessionActive, getCursorSessionStartTime, getActiveCursorSessions } from './cursor-cli.js';
 import { queryCodex, abortCodexSession, isCodexSessionActive, getCodexSessionStartTime, getActiveCodexSessions } from './openai-codex.js';
 import { spawnGemini, abortGeminiSession, isGeminiSessionActive, getGeminiSessionStartTime, getActiveGeminiSessions } from './gemini-cli.js';
+import { queryGeminiApi, abortGeminiApiSession, isGeminiApiSessionActive, getGeminiApiSessionStartTime, getActiveGeminiApiSessions } from './gemini-api.js';
 import { queryOpenRouter, abortOpenRouterSession, isOpenRouterSessionActive, getOpenRouterSessionStartTime, getActiveOpenRouterSessions } from './openrouter.js';
 import { queryLocalGPU, abortLocalGPUSession, isLocalGPUSessionActive, getLocalGPUSessionStartTime, getActiveLocalGPUSessions } from './local-gpu.js';
 import gitRoutes from './routes/git.js';
@@ -1614,7 +1615,7 @@ function handleChatConnection(ws, request) {
                 const commandTelemetryEnabled = data.options?.telemetryEnabled !== false;
                 const sessionId = data.options?.sessionId || data.sessionId;
                 
-                if (sessionId && isGeminiSessionActive(sessionId)) {
+                if (sessionId && (isGeminiApiSessionActive(sessionId) || isGeminiSessionActive(sessionId))) {
                     console.log(`[WARN] Gemini session ${sessionId} is already active. Ignoring concurrent request.`);
                     return;
                 }
@@ -1632,9 +1633,22 @@ function handleChatConnection(ws, request) {
                 );
                 writer.telemetryContext = { ...telemetryContext, provider: 'gemini', telemetryEnabled: commandTelemetryEnabled };
                 writer.setProjectPath(data.options?.projectPath || data.options?.cwd || null);
-                spawnGemini(data.command, { ...data.options, userId, env: sessionEnv }, writer).catch(error => {
-                    console.error('[ERROR] Gemini spawn error:', error);
-                });
+                const geminiOptions = { ...data.options, env: sessionEnv, userId };
+                queryGeminiApi(data.command, geminiOptions, writer)
+                    .then((result) => {
+                        if (result?.authFailed) {
+                            console.log('[Gemini] Direct API auth unavailable, falling back to CLI harness');
+                            return spawnGemini(data.command, { ...data.options, userId, env: sessionEnv }, writer);
+                        }
+                        return null;
+                    })
+                    .catch(error => {
+                        console.error('[ERROR] Gemini API error, falling back to CLI:', error.message);
+                        return spawnGemini(data.command, { ...data.options, userId, env: sessionEnv }, writer);
+                    })
+                    .catch(error => {
+                        console.error('[ERROR] Gemini CLI fallback error:', error);
+                    });
             } else if (data.type === 'openrouter-command') {
                 console.log('[DEBUG] OpenRouter message:', data.command || '[Continue/Resume]');
                 console.log('📁 Project:', data.options?.projectPath || data.options?.cwd || 'Unknown');
@@ -1722,7 +1736,7 @@ function handleChatConnection(ws, request) {
                 } else if (provider === 'codex') {
                     success = abortCodexSession(data.sessionId);
                 } else if (provider === 'gemini') {
-                    success = abortGeminiSession(data.sessionId);
+                    success = abortGeminiApiSession(data.sessionId) || abortGeminiSession(data.sessionId);
                 } else if (provider === 'openrouter') {
                     success = abortOpenRouterSession(data.sessionId);
                 } else if (provider === 'local') {
@@ -1773,8 +1787,8 @@ function handleChatConnection(ws, request) {
                     isActive = isCodexSessionActive(sessionId);
                     startTime = getCodexSessionStartTime(sessionId);
                 } else if (provider === 'gemini') {
-                    isActive = isGeminiSessionActive(sessionId);
-                    startTime = getGeminiSessionStartTime(sessionId);
+                    isActive = isGeminiApiSessionActive(sessionId) || isGeminiSessionActive(sessionId);
+                    startTime = getGeminiApiSessionStartTime(sessionId) || getGeminiSessionStartTime(sessionId);
                 } else if (provider === 'openrouter') {
                     isActive = isOpenRouterSessionActive(sessionId);
                     startTime = getOpenRouterSessionStartTime(sessionId);
@@ -1800,7 +1814,7 @@ function handleChatConnection(ws, request) {
                     claude: getActiveClaudeSDKSessions(),
                     cursor: getActiveCursorSessions(),
                     codex: getActiveCodexSessions(),
-                    gemini: getActiveGeminiSessions(),
+                    gemini: [...getActiveGeminiApiSessions(), ...getActiveGeminiSessions()],
                     local: getActiveLocalGPUSessions()
                 };
 
