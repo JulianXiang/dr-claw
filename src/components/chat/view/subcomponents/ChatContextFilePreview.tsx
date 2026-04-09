@@ -8,10 +8,15 @@ import { ExternalLink, FileText } from 'lucide-react';
 
 import { Button } from '../../../ui/button';
 import { api } from '../../../../utils/api';
-import type { SessionContextFileItem, SessionContextOutputItem } from '../../utils/sessionContextSummary';
 import { IMAGE_EXTENSIONS, AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, MARKDOWN_EXTENSIONS, HTML_EXTENSIONS } from '../../utils/fileExtensions';
 
-type PreviewFile = SessionContextFileItem | SessionContextOutputItem | null;
+export interface PreviewFileTarget {
+  name: string;
+  relativePath: string;
+  absolutePath: string | null;
+}
+
+type PreviewFile = PreviewFileTarget | null;
 
 type PreviewKind = 'empty' | 'loading' | 'text' | 'json' | 'markdown' | 'html' | 'pdf' | 'image' | 'audio' | 'video' | 'error';
 
@@ -133,7 +138,7 @@ export default function ChatContextFilePreview({
       try {
         if (previewKind === 'pdf' || previewKind === 'image' || previewKind === 'audio' || previewKind === 'video') {
           const absolutePath = file.absolutePath || file.relativePath;
-          const blob = await api.getFileContentBlob(projectName, absolutePath);
+          const blob = await api.getFileContentBlob(projectName, absolutePath, { signal: abortController.signal });
           if (abortController.signal.aborted) {
             return;
           }
@@ -143,7 +148,7 @@ export default function ChatContextFilePreview({
           return;
         }
 
-        const response = await api.readFile(projectName, file.relativePath);
+        const response = await api.readFile(projectName, file.relativePath, { signal: abortController.signal });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }

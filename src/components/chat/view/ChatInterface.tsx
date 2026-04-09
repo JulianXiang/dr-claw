@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import ChatMessagesPane from './subcomponents/ChatMessagesPane';
 import ChatComposer from './subcomponents/ChatComposer';
 import ChatContextSidebar from './subcomponents/ChatContextSidebar';
+import ChatContextFilePreview, { type PreviewFileTarget } from './subcomponents/ChatContextFilePreview';
 import GuidedPromptStarter from './subcomponents/GuidedPromptStarter';
 import { RESUMING_STATUS_TEXT } from '../types/types';
 import type { ChatInterfaceProps } from '../types/types';
@@ -22,10 +23,9 @@ import { Button } from '../../ui/button';
 import type { PendingAutoIntake } from '../../../types/app';
 import { CLAUDE_MODELS, CURSOR_MODELS, CODEX_MODELS, GEMINI_MODELS, OPENROUTER_MODELS } from '../../../../shared/modelConstants';
 import { getProviderDisplayName } from '../utils/chatFormatting';
-const CodeEditor = React.lazy(() => import('../../CodeEditor'));
-import type { EditingFile } from '../../main-content/types/types';
 import { normalizePath, toRelativePath, isSafePath, fileNameFromPath } from '../../../utils/pathUtils';
 import { useDeviceSettings } from '../../../hooks/useDeviceSettings';
+import { X } from 'lucide-react';
 
 
 const DEFAULT_PROVIDER_AVAILABILITY: Record<Provider, ProviderAvailability> = {
@@ -111,19 +111,28 @@ function ChatInterface({
   const { t } = useTranslation('chat');
   const { isMobile } = useDeviceSettings({ trackPWA: false });
   const [isShellEditPromptOpen, setIsShellEditPromptOpen] = useState(false);
-  const [previewFile, setPreviewFile] = useState<EditingFile | null>(null);
+  const [previewFile, setPreviewFile] = useState<PreviewFileTarget | null>(null);
 
   const handleFilePreview = useCallback((filePath: string) => {
     const root = selectedProject?.fullPath || selectedProject?.path || '';
     const relative = toRelativePath(filePath, root);
     if (!relative || !isSafePath(relative)) return;
     const name = fileNameFromPath(normalizePath(filePath));
-    setPreviewFile({ name, path: relative, projectName: selectedProject?.name });
+    setPreviewFile({
+      name,
+      relativePath: relative,
+      absolutePath: normalizePath(filePath),
+    });
   }, [selectedProject]);
 
   const handleClosePreview = useCallback(() => {
     setPreviewFile(null);
   }, []);
+
+  const handleOpenPreviewInEditor = useCallback((filePath: string) => {
+    setPreviewFile(null);
+    onFileOpen?.(filePath);
+  }, [onFileOpen]);
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>(() => {
     if (typeof window === 'undefined') return 'context';
@@ -557,6 +566,24 @@ function ChatInterface({
   }, [selectedSession?.id, selectedProject?.name]);
 
   useEffect(() => {
+    if (!previewFile) {
+      return undefined;
+    }
+
+    const handlePreviewEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.repeat || event.defaultPrevented) {
+        return;
+      }
+
+      event.stopPropagation();
+      setPreviewFile(null);
+    };
+
+    document.addEventListener('keydown', handlePreviewEscape);
+    return () => document.removeEventListener('keydown', handlePreviewEscape);
+  }, [previewFile]);
+
+  useEffect(() => {
     if (!isLoading || !canAbortSession) {
       return;
     }
@@ -710,29 +737,7 @@ function ChatInterface({
     <>
       <div className={`h-full flex min-h-0 ${isMobile ? 'flex-col' : 'flex-row'}`}>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {previewFile && (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <React.Suspense fallback={
-                <div className="w-full h-full flex items-center justify-center bg-background relative">
-                  <button onClick={handleClosePreview} className="absolute top-2 right-2 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded z-10">
-                    <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  </div>
-                </div>
-              }>
-                <CodeEditor
-                  file={previewFile}
-                  onClose={handleClosePreview}
-                  projectPath={selectedProject?.path}
-                  selectedProject={selectedProject}
-                  isSidebar
-                />
-              </React.Suspense>
-            </div>
-          )}
-          <div className={previewFile ? 'hidden' : `flex min-h-0 flex-1 flex-col ${isEmpty ? 'justify-start pt-[18vh] overflow-y-auto' : ''}`}>
+          <div className={`flex min-h-0 flex-1 flex-col ${isEmpty ? 'justify-start pt-[18vh] overflow-y-auto' : ''}`}>
         {shouldShowImportedProjectAnalysisPrompt && (
           <div className="mx-auto mt-4 w-full max-w-3xl px-3 sm:px-4">
             <div className="rounded-xl border border-border bg-card/95 shadow-sm px-4 py-4 sm:px-5">
@@ -957,6 +962,34 @@ function ChatInterface({
           onStartTask={handleStartTaskInChat}
         />
       </div>
+
+      {previewFile && selectedProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={handleClosePreview}
+        >
+          <div
+            className="relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={handleClosePreview}
+              className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              title={t('sessionContext.preview.closePreview')}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <ChatContextFilePreview
+                projectName={selectedProject.name}
+                file={previewFile}
+                onOpenInEditor={handleOpenPreviewInEditor}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isShellEditPromptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
